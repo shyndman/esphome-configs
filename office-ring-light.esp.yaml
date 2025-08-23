@@ -1,3 +1,29 @@
+# Office Ring Light - ESP32 Control System
+#
+# This configuration controls a modified Ali Express ring light/magnifying glass.
+# The original device was USB-powered with physical buttons for control. We've added
+# an ESP32C3 to intercept and control the button signals, giving us smart home integration.
+#
+# Hardware Control:
+# - GPIO 4: Power toggle (relay signal)
+# - GPIO 7: Cycle color temperature mode (inverted signal)
+# - GPIO 10: Increase brightness (inverted signal)
+# - GPIO 21: Decrease brightness (inverted signal)
+#
+# Device Capabilities:
+# - 10 brightness levels (0-9, where 0 is dimmest, not off)
+# - 3 color temperature modes that cycle: Yellow -> White+Yellow -> White -> Yellow...
+# - Physical power on/off via relay signal
+#
+# Home Assistant Integration:
+# - Unified light entity with brightness slider (0-100% -> 0-9 levels)
+# - Color temperature control (2000-6500K mapped to the 3 modes)
+# - Smart state management handles HA's off/on expectations vs hardware reality
+# - When HA sends brightness=0 (off), we trigger the power relay
+# - When HA sends brightness>0 while off, we power on then set brightness
+# - Individual GPIO switches available for manual state synchronization
+# - SSD1306 display shows current brightness level, mode, and connection status
+
 substitutions:
   friendly_name: Office Ring Light
   name: office_ring_light
@@ -16,17 +42,31 @@ web_server:
   version: 3
 
 esphome:
-  on_boot:
-    priority: -100  # Run after everything is initialized
-    then:
-      - lambda: |-
-          ESP_LOGI("boot", "=== Ring Light Boot State ===");
-          ESP_LOGI("boot", "Power State: %s", id(power_state) ? "ON" : "OFF");
-          ESP_LOGI("boot", "Brightness Level: %d", id(current_brightness));
-          ESP_LOGI("boot", "Mode: %d (%s)", id(current_mode), 
-                   (id(current_mode) == 0) ? "Yellow" : 
-                   (id(current_mode) == 1) ? "W+Y" : "White");
-          ESP_LOGI("boot", "========================");
+
+api:
+  on_client_connected:
+    - logger.log:
+        level: INFO
+        format: "CLIENT CONNECTED TEST - Client %s connected from %s"
+        args: ["client_info.c_str()", "client_address.c_str()"]
+    - logger.log:
+        level: INFO
+        format: "=== RING LIGHT STATE DUMP ==="
+    - logger.log:
+        level: INFO
+        format: "Power State: %s"
+        args: ["id(power_state) ? \"ON\" : \"OFF\""]
+    - logger.log:
+        level: INFO
+        format: "Current Brightness: %d (0-9)"
+        args: ["id(current_brightness)"]
+    - logger.log:
+        level: INFO
+        format: "Current Mode: %d (0=Yellow, 1=W+Y, 2=White)"
+        args: ["id(current_mode)"]
+    - logger.log:
+        level: INFO
+        format: "=== END STATE DUMP ==="
 
 i2c:
   - id: i2c_display
