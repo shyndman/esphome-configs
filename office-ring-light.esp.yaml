@@ -15,6 +15,19 @@ preferences:
 web_server:
   version: 3
 
+esphome:
+  on_boot:
+    priority: -100  # Run after everything is initialized
+    then:
+      - lambda: |-
+          ESP_LOGI("boot", "=== Ring Light Boot State ===");
+          ESP_LOGI("boot", "Power State: %s", id(power_state) ? "ON" : "OFF");
+          ESP_LOGI("boot", "Brightness Level: %d", id(current_brightness));
+          ESP_LOGI("boot", "Mode: %d (%s)", id(current_mode), 
+                   (id(current_mode) == 0) ? "Yellow" : 
+                   (id(current_mode) == 1) ? "W+Y" : "White");
+          ESP_LOGI("boot", "========================");
+
 i2c:
   - id: i2c_display
     scl: 6
@@ -31,60 +44,20 @@ globals:
     type: 'int'
     restore_value: yes
     initial_value: '1'  # Start at W+Y mode (0=Yellow, 1=W+Y, 2=White)
+  - id: power_state
+    type: bool
+    restore_value: yes
+    initial_value: 'false'  # Start with light off
 
 light:
   - platform: color_temperature
     name: "Ring Light"
     default_transition_length: 0s
+    gamma_correct: 1.0
     brightness: brightness_output
     color_temperature: color_temp_output
     cold_white_color_temperature: 6500K
     warm_white_color_temperature: 2000K
-
-select:
-  - platform: template
-    name: "Light Mode"
-    options:
-      - "Yellow"
-      - "White + Yellow"
-      - "White"
-    lambda: |-
-      const char* mode_names[] = {"Yellow", "White + Yellow", "White"};
-      return std::string(mode_names[id(current_mode)]);
-    set_action:
-      - lambda: |-
-          int target_mode;
-          if (x == "Yellow") {
-            target_mode = 0;
-          } else if (x == "White + Yellow") {
-            target_mode = 1;
-          } else {
-            target_mode = 2; // White
-          }
-
-          int current_mode_val = id(current_mode);
-
-          if (target_mode == current_mode_val) {
-            return; // No change needed
-          }
-
-          // Calculate how many mode cycle presses needed
-          int steps = 0;
-          int temp_mode = current_mode_val;
-
-          while (temp_mode != target_mode) {
-            temp_mode = (temp_mode + 1) % 3;
-            steps++;
-          }
-
-          // Send the mode cycle presses
-          for (int i = 0; i < steps; i++) {
-            id(cycle_light_temperature_signal_switch)->turn_on();
-            delay(150);
-          }
-
-          // Update stored state
-          id(current_mode) = target_mode;
 
 switch:
   - platform: gpio
@@ -135,6 +108,7 @@ switch:
 button:
   - platform: template
     name: "Recalibrate"
+    entity_category: config
     on_press:
       - logger.log: "Starting ring light recalibration"
       # Reset device to known state (brightness 0)
@@ -163,8 +137,28 @@ output:
     type: float
     write_action:
       - lambda: |-
-          ESP_LOGD("brightness_output", "Received brightness change: %.3f", state);
-          
+          ESP_LOGD("brightness_output", "Received brightness change: %.3f (power: %s)", state, id(power_state) ? "ON" : "OFF");
+
+          // Handle HA "off" command (brightness = 0)
+          if (state == 0.0) {
+            if (id(power_state)) {
+              ESP_LOGD("brightness_output", "Turning light OFF");
+              id(relay_signal_switch).turn_on();  // Toggle power off
+              id(power_state) = false;
+            } else {
+              ESP_LOGD("brightness_output", "Light already OFF - ignoring");
+            }
+            return;
+          }
+
+          // Handle HA "on" command (brightness > 0)
+          if (!id(power_state)) {
+            ESP_LOGD("brightness_output", "Light is OFF - turning ON first");
+            id(relay_signal_switch).turn_on();  // Toggle power on
+            id(power_state) = true;
+            delay(500);  // Give light time to boot up
+          }
+
           // Convert 0.0-1.0 to 0-9 brightness level
           int target_brightness = (int)(state * 9);
           int current_brightness_val = id(current_brightness);
@@ -172,6 +166,7 @@ output:
           ESP_LOGD("brightness_output", "Converted to target level %d (current: %d)", target_brightness, current_brightness_val);
 
           if (target_brightness == current_brightness_val) {
+            ESP_LOGD("brightness_output", "Target matches current - no change needed");
             return; // No change needed
           }
 
@@ -200,8 +195,20 @@ output:
     type: float
     write_action:
       - lambda: |-
-          ESP_LOGD("color_temp_output", "Received color temp change: %.3f", state);
-          
+          ESP_LOGD("color_temp_output", "Received color temp change: %.3f (power: %s)", state, id(power_state) ? "ON" : "OFF");
+
+          // Handle HA "off" command (color_temp = 0) - ignore it, brightness handles power off
+          if (state == 0.0) {
+            ESP_LOGD("color_temp_output", "Color temp 0 during OFF - ignoring");
+            return;
+          }
+
+          // Don't process color temp changes if light is off
+          if (!id(power_state)) {
+            ESP_LOGD("color_temp_output", "Light is OFF - ignoring color temp change");
+            return;
+          }
+
           // Map 0.0-1.0 to modes: 0.0-0.33=White, 0.33-0.66=W+Y, 0.66-1.0=Yellow
           int target_mode;
           if (state < 0.33) {
@@ -217,6 +224,7 @@ output:
           ESP_LOGD("color_temp_output", "Mapped to target mode %d (current: %d)", target_mode, current_mode_val);
 
           if (target_mode == current_mode_val) {
+            ESP_LOGD("color_temp_output", "Target matches current - no change needed");
             return; // No change needed
           }
 
