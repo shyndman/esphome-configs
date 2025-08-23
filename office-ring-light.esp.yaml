@@ -9,6 +9,9 @@ packages:
 logger:
   level: DEBUG
 
+preferences:
+  flash_write_interval: never
+
 web_server:
   version: 3
 
@@ -20,73 +23,221 @@ i2c:
     scan: false
 
 globals:
-  - id: light_color
-    type: int
+  - id: current_brightness
+    type: 'int'
     restore_value: yes
-    initial_value: 0
-  # Example for global string variable
-  - id: brightness
-    type: int
+    initial_value: '0'  # Start at lowest brightness
+  - id: current_mode
+    type: 'int'
     restore_value: yes
-    initial_value: 10
+    initial_value: '1'  # Start at W+Y mode (0=Yellow, 1=W+Y, 2=White)
+
+light:
+  - platform: color_temperature
+    name: "Ring Light"
+    default_transition_length: 0s
+    brightness: brightness_output
+    color_temperature: color_temp_output
+    cold_white_color_temperature: 6500K
+    warm_white_color_temperature: 2000K
 
 select:
   - platform: template
-    name: Mode
-    id: LED Colors
+    name: "Light Mode"
     options:
-     - "White and Yellow"
-     - "Yellow"
-     - "White"
-    initial_option: "White and Yellow"
+      - "Yellow"
+      - "White + Yellow"
+      - "White"
+    lambda: |-
+      const char* mode_names[] = {"Yellow", "White + Yellow", "White"};
+      return std::string(mode_names[id(current_mode)]);
     set_action:
-      - logger.log:
-          format: "Chosen option: %s"
-          args: ["x.c_str()"]
+      - lambda: |-
+          int target_mode;
+          if (x == "Yellow") {
+            target_mode = 0;
+          } else if (x == "White + Yellow") {
+            target_mode = 1;
+          } else {
+            target_mode = 2; // White
+          }
 
+          int current_mode_val = id(current_mode);
 
+          if (target_mode == current_mode_val) {
+            return; // No change needed
+          }
+
+          // Calculate how many mode cycle presses needed
+          int steps = 0;
+          int temp_mode = current_mode_val;
+
+          while (temp_mode != target_mode) {
+            temp_mode = (temp_mode + 1) % 3;
+            steps++;
+          }
+
+          // Send the mode cycle presses
+          for (int i = 0; i < steps; i++) {
+            id(cycle_light_temperature_signal_switch)->turn_on();
+            delay(150);
+          }
+
+          // Update stored state
+          id(current_mode) = target_mode;
 
 switch:
   - platform: gpio
     id: relay_signal_switch
-    name: Power
+    name: "GPIO: Power Toggle"
+    entity_category: diagnostic
     pin: 4
     on_turn_on:
-    - delay: 150ms
+    - delay: 100ms
     - switch.turn_off: relay_signal_switch
   - platform: gpio
     id: cycle_light_temperature_signal_switch
-    name: Cycle Light Temperature
-    pin: 
+    name: "GPIO: Cycle Temperature"
+    entity_category: diagnostic
+    pin:
       number: 7
       inverted: true
       mode:
         output: true
     on_turn_on:
-    - delay: 150ms
+    - delay: 100ms
     - switch.turn_off: cycle_light_temperature_signal_switch
   - platform: gpio
     id: brightness_up_signal_switch
-    name: Increase Brightness
-    pin: 
+    name: "GPIO: Brightness Up"
+    entity_category: diagnostic
+    pin:
       number: 10
       inverted: true
       mode:
         output: true
     on_turn_on:
-    - delay: 150ms
+    - delay: 100ms
     - switch.turn_off: brightness_up_signal_switch
   - platform: gpio
     id: brightness_down_signal_switch
-    name: Decrease Brightness
-    pin: 
+    name: "GPIO: Brightness Down"
+    entity_category: diagnostic
+    pin:
       number: 21
       inverted: true
       mode:
         output: true
     on_turn_on:
-    - delay: 150ms
+    - delay: 100ms
     - switch.turn_off: brightness_down_signal_switch
+
+button:
+  - platform: template
+    name: "Recalibrate"
+    on_press:
+      - logger.log: "Starting ring light recalibration"
+      # Reset device to known state (brightness 0)
+      - repeat:
+          count: 9  # Max brightness levels, ensure we're at 0
+          then:
+            - switch.turn_on: brightness_down_signal_switch
+            - delay: 100ms
+      # Set to stored brightness
+      - repeat:
+          count: !lambda "return id(current_brightness);"
+          then:
+            - switch.turn_on: brightness_up_signal_switch
+            - delay: 100ms
+      # Cycle to stored mode (always start from Yellow=0 and cycle to target)
+      - repeat:
+          count: !lambda "return id(current_mode);"
+          then:
+            - switch.turn_on: cycle_light_temperature_signal_switch
+            - delay: 100ms
+      - logger.log: "Ring light recalibration complete"
+
+output:
+  - platform: template
+    id: brightness_output
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGD("brightness_output", "Received brightness change: %.3f", state);
+          
+          // Convert 0.0-1.0 to 0-9 brightness level
+          int target_brightness = (int)(state * 9);
+          int current_brightness_val = id(current_brightness);
+
+          ESP_LOGD("brightness_output", "Converted to target level %d (current: %d)", target_brightness, current_brightness_val);
+
+          if (target_brightness == current_brightness_val) {
+            return; // No change needed
+          }
+
+          // Calculate steps needed
+          int steps = target_brightness - current_brightness_val;
+
+          if (steps > 0) {
+            // Need to increase brightness
+            for (int i = 0; i < steps; i++) {
+              id(brightness_up_signal_switch).turn_on();
+              delay(200); // Small delay between presses
+            }
+          } else {
+            // Need to decrease brightness
+            for (int i = 0; i < -steps; i++) {
+              id(brightness_down_signal_switch).turn_on();
+              delay(200); // Small delay between presses
+            }
+          }
+
+          // Update stored state
+          id(current_brightness) = target_brightness;
+
+  - platform: template
+    id: color_temp_output
+    type: float
+    write_action:
+      - lambda: |-
+          ESP_LOGD("color_temp_output", "Received color temp change: %.3f", state);
+          
+          // Map 0.0-1.0 to modes: 0.0-0.33=White, 0.33-0.66=W+Y, 0.66-1.0=Yellow
+          int target_mode;
+          if (state < 0.33) {
+            target_mode = 2; // White only
+          } else if (state < 0.66) {
+            target_mode = 1; // White + Yellow
+          } else {
+            target_mode = 0; // Yellow only
+          }
+
+          int current_mode_val = id(current_mode);
+
+          ESP_LOGD("color_temp_output", "Mapped to target mode %d (current: %d)", target_mode, current_mode_val);
+
+          if (target_mode == current_mode_val) {
+            return; // No change needed
+          }
+
+          // Calculate how many mode cycle presses needed
+          // Mode cycling: 0(Y) -> 1(W+Y) -> 2(W) -> 0(Y) -> ...
+          int steps = 0;
+          int temp_mode = current_mode_val;
+
+          while (temp_mode != target_mode) {
+            temp_mode = (temp_mode + 1) % 3; // Cycle through 0,1,2
+            steps++;
+          }
+
+          // Send the mode cycle presses
+          for (int i = 0; i < steps; i++) {
+            id(cycle_light_temperature_signal_switch).turn_on();
+            delay(100); // Small delay between presses
+          }
+
+          // Update stored state
+          id(current_mode) = target_mode;
 
 font:
   - file: "gfonts://Roboto"
@@ -99,4 +250,16 @@ display:
     i2c_id: i2c_display
     address: 0x3C
     lambda: |-
-      it.print(0, 0, id(roboto_12), "Hello World!");
+      // Show current brightness level
+      it.printf(0, 0, id(roboto_12), "Level: %d", id(current_brightness));
+
+      // Show current mode
+      const char* mode_names[] = {"Yellow", "W+Y", "White"};
+      it.printf(0, 14, id(roboto_12), "Mode: %s", mode_names[id(current_mode)]);
+
+      // Show connection status
+      if (api::global_api_server->is_connected()) {
+        it.print(0, 28, id(roboto_12), "HA: OK");
+      } else {
+        it.print(0, 28, id(roboto_12), "HA: --");
+      }
