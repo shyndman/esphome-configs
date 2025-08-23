@@ -1,0 +1,33 @@
+- lambda:
+    name: Rainbow
+    update_interval: 1000ms # If you change this, also have to edit line 11 for correct time handling
+    lambda: |-
+      static int state = 0;
+      static uint32_t time = millis();
+      if(millis() - time > 1400){
+        ESP_LOGD("main", "Rainbow effect resumed after break!");
+        state = 0;
+      }
+      auto call = id(bulb).turn_on();
+      call.set_transition_length(1200);
+      switch (state) {
+        default:
+        case 0: call.set_rgb(1.0, 0.0, 0.0);
+                break;
+        case 1: call.set_rgb(1.0, 1.0, 0.0);
+                break;
+        case 2: call.set_rgb(0.0, 1.0, 0.0);
+                break;
+        case 3: call.set_rgb(0.0, 1.0, 1.0);
+                break;
+        case 4: call.set_rgb(0.0, 0.0, 1.0);
+                break;
+        case 5: call.set_rgb(1.0, 0.0, 1.0);
+                break;
+      }
+      call.set_publish(false);
+      call.set_save(false);
+      call.perform();
+      state += 1;
+      state %= 6;
+      time = millis();

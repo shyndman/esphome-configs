@@ -1,0 +1,23 @@
+substitutions:
+  friendly_name: Smelly Fridge Magnet Display
+  name: smelly_fridge_magnet_display
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  t-display-s3-amoled: !include packages/t-display-s3-amoled.esp.yaml
+
+display:
+  - id: !extend main_display
+    transform:
+      mirror_x: true
+      mirror_y: false
+      swap_xy: true
+    update_interval: 5s
+    auto_clear_enabled: true
+    lambda: |-
+      it.image(6, 20, id(stove_icon));
+
+image:
+  - file: mdi:stove
+    id: stove_icon
+    resize: 60x60

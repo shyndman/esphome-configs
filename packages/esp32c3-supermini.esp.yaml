@@ -1,0 +1,22 @@
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  # framework:
+  #   type: esp-idf
+    # sdkconfig_options:
+    #   COMPILER_OPTIMIZATION_SIZE: y
+
+api:
+  reboot_timeout: 0s
+
+status_led:
+  pin:
+    number: 8

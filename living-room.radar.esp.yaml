@@ -1,0 +1,8 @@
+substitutions:
+  friendly_name: Living Room Radar
+  name: living_room_radar
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+  mm-wave-presence: !include packages/mm-wave-presence.esp.yaml

@@ -1,0 +1,23 @@
+substitutions:
+  friendly_name: Speaker Scratch
+  name: speaker_scratch_device
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  zero: !include packages/esp32s3-zero.esp.yaml
+
+web_server:
+  port: 80
+  version: 3
+
+media_player:
+- platform: i2s_audio
+  name: Media Player
+  i2s_audio_id: i2s_speaker
+  dac_type: external
+  i2s_dout_pin: 4
+
+i2s_audio:
+  id: i2s_speaker
+  i2s_lrclk_pin: 6
+  i2s_bclk_pin: 5

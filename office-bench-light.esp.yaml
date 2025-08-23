@@ -1,0 +1,39 @@
+substitutions:
+  friendly_name: Office Bench Light
+  name: office_bench_light
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
+
+external_components:
+- source: github://litui/esphome-components@v1.0.0
+  components: [ neewerlight_ble, neewerlight ]
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+api:
+  reboot_timeout: 0s
+
+ble_client:
+- mac_address: F8:0C:31:D6:74:8C
+  id: nw_rgb62
+
+light:
+- platform: neewerlight
+  name: "RGB Light"
+  ble_client_id: nw_rgb62
+  gamma_correct: 1.0
+  default_transition_length: 0s

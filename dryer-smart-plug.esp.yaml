@@ -1,0 +1,15 @@
+substitutions:
+  friendly_name: 'Dryer Smart Plug'
+  name: 'dryer_smart_plug'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-smart-plug-v2: !include packages/athom-smart-plug-v2.esp.yaml
+
+binary_sensor:
+  - platform: template
+    name: 'Is Drying?'
+    id: is_drying
+    device_class: running
+    lambda: |-
+      return id(power_sensor).state > 150;

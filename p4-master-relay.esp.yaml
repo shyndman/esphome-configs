@@ -1,0 +1,308 @@
+substitutions:
+  friendly_name: P4 Master Relay
+  name: "p4_master_relay"
+  device_model:  POW Elite 20A
+  update_interval: 5s
+
+esphome:
+  name: $name
+  friendly_name: $friendly_name
+  on_boot: # Set the initial state of the template switch to the actual relay state. This will NOT change the state.
+    priority: 250.0 # Wait until WiFi is connected to allow the sensor some time to settle
+    then:
+      - if:
+          condition:
+            lambda: 'return id(v_sensor).state > 5;'
+          then:
+            - switch.turn_on: relay_1
+          else:
+            - switch.turn_off: relay_1
+esp32:
+  board: nodemcu-32s
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  manual_ip:
+    static_ip: ${ip_${name}}
+    gateway: 192.168.0.1
+    subnet: 255.255.252.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: $friendly_name Fallback Hotspot
+    password: "Yrw7Hfc2g4iV"
+
+captive_portal:
+
+logger:
+
+debug:
+  update_interval: 30s
+
+api:
+  on_client_connected:
+    - logger.log:
+        format: "Client %s connected to API with IP %s"
+        args: ["client_info.c_str()", "client_address.c_str()"]
+
+ota:
+  - platform: esphome
+
+# esp32_ble_tracker:
+#   scan_parameters:
+#     interval: 1100ms
+#     window: 1100ms
+#     active: true
+
+# bluetooth_proxy:
+#   active: true
+
+
+uart:
+  rx_pin: GPIO16
+  baud_rate: 4800
+
+web_server:
+  port: 80
+  version: 3
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+sensor:
+  - platform: cse7766
+    current:
+      name: $friendly_name Current
+      id: a_sensor
+      filters:
+        - throttle_average: ${update_interval}
+    voltage:
+      name: $friendly_name Voltage
+      id: v_sensor
+      filters:
+        - throttle_average: ${update_interval}
+    power:
+      name: $friendly_name Power
+      id: w_sensor
+      filters:
+        - throttle_average: ${update_interval}
+    energy:
+      name: $friendly_name Energy
+      id: wh_sensor
+      filters:
+        - throttle_average: ${update_interval}
+    apparent_power:
+      name: $friendly_name Apparent Power
+      filters:
+        - throttle_average: ${update_interval}
+    power_factor:
+      name: $friendly_name Power Factor
+      filters:
+        - throttle_average: ${update_interval}
+
+  - platform: total_daily_energy
+    name: $friendly_name Total Daily Energy
+    power_id: w_sensor
+    filters:
+      - multiply: 0.001
+    unit_of_measurement: kWh
+
+  - platform: wifi_signal
+    name: $friendly_name Wifi RSSI
+    update_interval: 30s
+
+  - platform: uptime
+    id: uptime_sensor
+    internal: True
+    on_raw_value:
+      then:
+        - text_sensor.template.publish:
+            id: uptime_human
+            state: !lambda |-
+              int seconds = round(id(uptime_sensor).raw_state);
+              int days = seconds / (24 * 3600);
+              seconds = seconds % (24 * 3600);
+              int hours = seconds / 3600;
+              seconds = seconds % 3600;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") +
+                (to_string(seconds) + "s")
+              ).c_str();
+
+  - platform: template
+    name: $friendly_name ESP32 Internal Temp
+    device_class: temperature
+    unit_of_measurement: °C
+    id: esp32_temp
+    lambda: return temperatureRead();
+
+  - platform: template
+    name: $friendly_name Power Factor
+    device_class: power_factor
+    id: power_factor
+    lambda: return id(w_sensor).state / id(v_sensor).state / id(a_sensor).state;
+
+  # - platform: debug
+  #   free:
+  #     name: "Heap Free"
+  #   block:
+  #     name: "Heap Max Block"
+  #   loop_time:
+  #     name: "Loop Time"
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO00
+      ignore_strapping_warning: true
+    id: reset
+    internal: true
+    filters:
+      - invert:
+      - delayed_off: 10ms
+    on_click:
+      - max_length: 350ms # short press to toggle the relay
+        then:
+          switch.toggle: relay_1
+      - min_length: 360ms # long press to cycle display info
+        max_length: 3s
+        then:
+          - if:
+              condition:
+                binary_sensor.is_on: page
+              then:
+                binary_sensor.template.publish:
+                  id: page
+                  state: OFF
+              else:
+                binary_sensor.template.publish:
+                  id: page
+                  state: ON
+
+  - platform: template # this is a fake sensor to tell the screen which info to show on display
+    id: page
+    publish_initial_state: true
+    internal: true
+  - platform: template
+    name: $friendly_name Load
+    id: load_on
+    lambda: |-
+      if (isnan(id(w_sensor).state)) {
+        return {};
+      } else if (id(w_sensor).state > 3.0) {
+        // Running
+        return true;
+      } else {
+        // Not running
+        return false;
+      }
+
+display:
+  platform: tm1621
+  id: tm1621_display
+  cs_pin: GPIO25
+  data_pin: GPIO14
+  read_pin: GPIO26
+  write_pin: GPIO27
+  lambda: |-
+    if (id(page).state) {
+      it.display_voltage(true);
+      it.display_kwh(false);
+      it.printf(0, "%.1f", id(v_sensor).state);
+      it.printf(1, "%.1f", id(a_sensor).state);
+    } else {
+      it.display_voltage(false);
+      it.display_kwh(true);
+      it.printf(0, "%.1f", id(wh_sensor).state);
+      it.printf(1, "%.1f", id(w_sensor).state);
+    }
+
+output:
+  - platform: ledc
+    id: led
+    pin:
+      number: GPIO18
+      inverted: True
+
+switch:
+  - platform: template
+    name: $friendly_name
+    optimistic: true
+    id: relay_1
+    turn_off_action:
+      - switch.turn_on: relay_off
+    turn_on_action:
+      - switch.turn_on: relay_on
+  - platform: gpio
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+    id: relay_off
+    pin: GPIO04
+    on_turn_on:
+      - delay: 500ms
+      - switch.turn_off: relay_off # bi-stable relay so no need to keep on
+      - light.turn_off: switch_led
+    interlock: [relay_on]
+  - platform: gpio
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: true
+    id: relay_on
+    pin:
+      number: GPIO02
+      ignore_strapping_warning: true
+    on_turn_on:
+      - delay: 500ms
+      - switch.turn_off: relay_on  # bi-stable relay so no need to keep on
+      - light.turn_on: switch_led
+    interlock: [relay_off]
+  - platform: restart
+    name: $friendly_name Restart
+
+text_sensor:
+  - platform: template
+    name: $friendly_name Uptime
+    id: uptime_human
+    icon: mdi:clock-start
+  - platform: wifi_info
+    ip_address:
+      name: $friendly_name IP
+    ssid:
+      name: $friendly_name SSID
+    bssid:
+      name: $friendly_name BSSID
+  - platform: debug
+    device:
+      name: "Device Info"
+    reset_reason:
+      name: "Reset Reason"
+
+light:
+  - platform: monochromatic
+    id: switch_led
+    output: led
+    internal: True
+  - platform: status_led
+    id: wifi_status_led
+    internal: True
+    pin:
+      number: GPIO05
+      inverted: True
+      ignore_strapping_warning: true
+
+interval:
+  - interval: 30s
+    then:
+      if:
+        condition:
+          wifi.connected:
+        then:
+          - light.turn_on: wifi_status_led
+        else:
+          - light.turn_off: wifi_status_led

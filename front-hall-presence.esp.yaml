@@ -1,0 +1,9 @@
+substitutions:
+  friendly_name: 'Front Hall Presence'
+  name: front_hall_presence
+
+<<: !include packages/ble-beacon-tracker.esp.yaml
+
+status_led:
+  pin:
+    number: GPIO38

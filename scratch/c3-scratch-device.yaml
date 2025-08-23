@@ -1,0 +1,99 @@
+substitutions:
+  friendly_name: $ Scratch C3
+  name: c3_scratch_device
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+api:
+  reboot_timeout: 0s
+
+web_server:
+  version: 3
+
+i2c:
+  - scl: 9
+    sda: 8
+    scan: true
+
+mpr121:
+  id: mpr121_component
+  address: 0x5A
+  touch_debounce: 1
+  release_debounce: 1
+  touch_threshold: 25
+  release_threshold: 5
+
+binary_sensor:
+  - platform: mpr121
+    id: touch_key0
+    channel: 0
+    name: "Touch Key 0"
+  - platform: mpr121
+    id: touch_key1
+    channel: 1
+    name: "Touch Key 1"
+  - platform: mpr121
+    id: touch_key2
+    channel: 2
+    name: "Touch Key 2"
+  - platform: mpr121
+    id: touch_key3
+    channel: 3
+    name: "Touch Key 3"
+  - platform: mpr121
+    id: touch_key4
+    channel: 4
+    name: "Touch Key 4"
+  - platform: mpr121
+    id: touch_key5
+    channel: 5
+    name: "Touch Key 5"
+  - platform: mpr121
+    id: touch_key6
+    channel: 6
+    name: "Touch Key 6"
+  - platform: mpr121
+    id: touch_key7
+    channel: 7
+    name: "Touch Key 7"
+  - platform: mpr121
+    id: touch_key8
+    channel: 8
+    name: "Touch Key 8"
+  - platform: mpr121
+    id: touch_key9
+    channel: 9
+    name: "Touch Key 9"
+
+sensor:
+  # - platform: dht
+  #   model: DHT22
+  #   pin: 0
+  #   temperature:
+  #     name: "Temperature"
+  #   humidity:
+  #     name: "Humidity"
+  #   update_interval: 5s
+  # - platform: hx711
+  #   name: "HX711 Value"
+  #   clk_pin: 1
+  #   dout_pin: 2
+  #   gain: 128
+  #   update_interval: 5s

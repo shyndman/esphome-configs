@@ -1,0 +1,15 @@
+substitutions:
+  friendly_name: 'Network Hub Plug'
+  name: 'network_hub_plug'
+
+web_server:
+  port: 80
+  version: 3
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  s31-switch: !include packages/s31-switch.esp.yaml
+
+switch:
+  - id: !extend relay
+    restore_mode: ALWAYS_ON

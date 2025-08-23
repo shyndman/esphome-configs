@@ -1,0 +1,96 @@
+substitutions:
+  friendly_name: Environment Scratch
+  name: environment_scratch
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.arduino.memory_type: qio_opi
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: qio
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+web_server:
+  version: 3
+
+psram:
+  mode: octal
+  speed: 80000000.0
+
+i2c:
+  sda: 5
+  scl: 6
+  scan: true
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: BME688
+  operating_age: 4d
+  sample_rate: LP
+  supply_voltage: 3.3V
+  state_save_interval: 1h
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: "BME68x Temperature"
+    pressure:
+      name: "BME68x Pressure"
+    humidity:
+      name: "BME68x Humidity"
+    gas_resistance:
+      name: "BME68x Gas Resistance"
+    iaq:
+      name: "BME68x IAQ"
+    iaq_static:
+      name: "BME68x IAQ Static"
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
+    co2_equivalent:
+      name: "BME68x CO2 Equivalent"
+    breath_voc_equivalent:
+      name: "BME68x Breath VOC Equivalent"
+
+  - platform: pmsa003i
+    pm_1_0:
+      name: "PMSA PM1.0"
+    pm_2_5:
+      name: "PMSA PM2.5"
+    pm_10_0:
+      name: "PMSA PM10.0"
+    pmc_0_3:
+      name: "PMSA PMC >0.3µm"
+    pmc_0_5:
+      name: "PMSA PMC >0.5µm"
+    pmc_1_0:
+      name: "PMSA PMC >1µm"
+    pmc_2_5:
+      name: "PMSA PMC >2.5µm"
+    pmc_5_0:
+      name: "PMSA PMC >5µm"
+    pmc_10_0:
+      name: "PMSA PMC >10µm"
+    update_interval: 30s
+
+  - platform: veml7700
+    address: 0x10
+
+    ambient_light: "VEML Ambient light"
+    actual_gain: "VEML Actual gain"
+    actual_integration_time: "VEML Actual integration time"
+    full_spectrum: "VEML Full Spectrum"
+    infrared: "VEML Near-IR Spectrum"
+
+    update_interval: 30s
+
+text_sensor:
+  - platform: bme68x_bsec2
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"

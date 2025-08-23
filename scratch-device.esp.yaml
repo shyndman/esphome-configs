@@ -1,0 +1,63 @@
+substitutions:
+  friendly_name: Scratch Device
+  name: scratch_device
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+api:
+  reboot_timeout: 0s
+
+web_server:
+  version: 3
+
+logger:
+  level: DEBUG
+
+# sensor:
+#   - platform: adc
+#     name: "Touch Test Pin"
+#     id: "touch_test_pin"
+#     pin: 6
+#     accuracy_decimals: 2
+#     update_interval: 1s
+
+esp32_touch:
+  setup_mode: false
+  filter_mode: IIR_16
+  debounce_count: 1
+  noise_threshold: 0
+  jitter_step: 4
+  smooth_mode: IIR_2
+  denoise_grade: BIT4
+  denoise_cap_level: L4
+
+binary_sensor:
+  - platform: esp32_touch
+    id: esp32_touch_pad
+    name: "ESP32 Touch Pad 01"
+    pin: GPIO01
+    threshold: 100
+
+sensor:
+  - platform: template
+    name: "Raw touch value"
+    lambda: |-
+        return id(esp32_touch_pad).get_value();
+    update_interval: 3s

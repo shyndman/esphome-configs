@@ -1,0 +1,142 @@
+substitutions:
+  friendly_name: Fridge Magnet
+  name: fridge_magnet
+
+external_components:
+  - source: github://nickolay/esphome-lilygo-t547plus
+    components: ["t547"]
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    # Unless noted otherwise, based on https://github.com/Xinyuan-LilyGO/LilyGo-EPD47/blob/1eb6119fc31fcff7a6bafecb09f4225313859fc5/examples/demo/platformio.ini#L37
+    upload_speed: 921600
+    monitor_speed: 115200
+    board_build.mcu: esp32s3
+    board_build.f_cpu: 240000000L
+    board_build.arduino.memory_type: qspi_opi
+    board_build.flash_size: 16MB
+    board_build.flash_mode: qio
+    board_build.flash_type: qspi
+    board_build.psram_type: opi
+    board_build.memory_type: qspi_opi
+    board_build.boot_freq: 80m
+    platform_packages:
+      - "toolchain-riscv32-esp @8.4.0+2021r2-patch5"
+    build_flags:  # the first three defines are required for the screen library to function.
+      - "-DBOARD_HAS_PSRAM"
+      - "-DARDUINO_RUNNING_CORE=0"  # TODO: this conflicts with the value from platformio's idedata, spewing a lot of warnings during the build.
+      - "-DARDUINO_EVENT_RUNNING_CORE=0"  # and this too
+      # In addition to lilygo's settings:
+      # To enable reading logs over USB until `hardware_uart: USB_CDC` support
+      # is added to `logger:`, as detailed in <https://github.com/esphome/feature-requests/issues/1906>:
+      - "-DARDUINO_USB_MODE=1"
+      - "-DARDUINO_USB_CDC_ON_BOOT=1"
+  # on_boot:
+  #   priority: 800.0
+  #   then:
+  #     - component.update:
+  #         id: t5_display
+
+esp32:
+  variant: esp32s3
+  board: esp32-s3-devkitc-1
+
+  framework:
+    type: arduino
+    # Just like in <https://community.home-assistant.io/t/enable-usb-cdc-to-log-hello-world-to-esp32-s3-dev-board-for-esphome/463164/10>
+    # I had problems with newer versions; the following combination happens to work, so using it for now.
+    version: 2.0.3
+    platform_version: 5.1.1
+
+logger:
+  level: DEBUG
+
+psram:
+  mode: octal
+
+i2c:
+  - scl: 17
+    sda: 18
+    scan: true
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: BME688
+  operating_age: 28d
+  sample_rate: LP
+  supply_voltage: 3.3V
+  state_save_interval: 6h
+  temperature_offset: 3.2
+
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: "BME68x Temperature"
+      id: air_temperature
+    pressure:
+      name: "BME68x Pressure"
+      id: air_pressure
+    humidity:
+      name: "BME68x Humidity"
+      id: rel_humidity
+    gas_resistance:
+      name: "BME68x Gas Resistance"
+    iaq:
+      name: "BME68x IAQ"
+    iaq_static:
+      name: "BME68x IAQ Static"
+      id: air_quality
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
+      id: air_quality_accuracy
+    co2_equivalent:
+      name: "BME68x CO2 Equivalent"
+      id: co2_level
+    breath_voc_equivalent:
+      name: "BME68x Breath VOC Equivalent"
+      id: breath_voc_level
+
+  - platform: absolute_humidity
+    name: Absolute Humidity
+    id: abs_humidity
+    temperature: air_temperature
+    humidity: rel_humidity
+    accuracy_decimals: 1
+
+
+# touchscreen:
+#   - platform: gt911
+#     id: lilygo_touchscreen
+#     interrupt_pin: 47
+#     address: 0x14
+#     on_touch:
+#       then:
+#         - component.update: t5_display
+    #     - logger.log: "Got a touch!"
+
+display:
+  - platform: t547
+    id: t5_display
+    greyscale: True
+    rotation: 270
+    lambda: |-
+      auto d = id(t5_display);
+      auto first_run = d->get_update_interval() != SCHEDULER_DONT_RUN;
+
+      if (first_run) {
+        // Clear the display
+        it.fill(COLOR_OFF);
+        it.image(0, 0, id(e_ink_henry));
+        d->set_update_interval(SCHEDULER_DONT_RUN);
+        d->start_poller();
+        return;
+      }
+
+image:
+  - file: 'assets/e-ink-henry-inverted.png'
+    id: e_ink_henry
+    type: GRAYSCALE

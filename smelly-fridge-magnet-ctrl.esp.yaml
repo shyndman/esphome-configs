@@ -1,0 +1,82 @@
+substitutions:
+  friendly_name: Smelly Fridge Magnet Controller
+  name: smelly_fridge_magnet_ctrl
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  esp32s3-zero: !include packages/esp32s3-zero.esp.yaml
+
+i2c:
+  sda: 6
+  scl: 5
+  scan: true
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: BME688
+  operating_age: 28d
+  sample_rate: ULP
+  supply_voltage: 3.3V
+  state_save_interval: 6h
+  temperature_offset: 3.2
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: "BME68x Temperature"
+      id: air_temperature
+    pressure:
+      name: "BME68x Pressure"
+      id: air_pressure
+    humidity:
+      name: "BME68x Humidity"
+      id: rel_humidity
+    gas_resistance:
+      name: "BME68x Gas Resistance"
+    iaq:
+      name: "BME68x IAQ"
+      id: iaq
+    iaq_static:
+      name: "BME68x IAQ Static"
+      id: air_quality
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
+      id: air_quality_accuracy
+    co2_equivalent:
+      name: "BME68x CO2 Equivalent"
+      id: co2_level
+    breath_voc_equivalent:
+      name: "BME68x Breath VOC Equivalent"
+      id: breath_voc_level
+
+text_sensor:
+  - platform: bme68x_bsec2
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
+  - platform: template
+    name: "BME68x IAQ Classification"
+    lambda: |-
+      if ( int(id(iaq).state) <= 50) {
+        return {"Excellent"};
+      }
+      else if (int(id(iaq).state) >= 51 && int(id(iaq).state) <= 100) {
+        return {"Good"};
+      }
+      else if (int(id(iaq).state) >= 101 && int(id(iaq).state) <= 150) {
+        return {"Lightly polluted"};
+      }
+      else if (int(id(iaq).state) >= 151 && int(id(iaq).state) <= 200) {
+        return {"Moderately polluted"};
+      }
+      else if (int(id(iaq).state) >= 201 && int(id(iaq).state) <= 250) {
+        return {"Heavily polluted"};
+      }
+      else if (int(id(iaq).state) >= 251 && int(id(iaq).state) <= 350) {
+        return {"Severely polluted"};
+      }
+      else if (int(id(iaq).state) >= 351) {
+        return {"Extremely polluted"};
+      }
+      else {
+        return {"error"};
+      }

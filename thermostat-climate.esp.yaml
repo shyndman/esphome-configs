@@ -1,0 +1,232 @@
+substitutions:
+  friendly_name: Theoretical Thermostat Climate Controller
+  name: thermostat_climate_ctrl
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  esp32s3-sense: !include packages/esp32s3-sense.esp.yaml
+  ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
+
+i2c:
+  - id: !remove sensor
+
+climate:
+  - platform: thermostat
+    name: Climate Control
+    id: climate_control
+    visual:
+      min_temperature: 16
+      max_temperature: 30
+      temperature_step:
+        target_temperature: 0.2
+        current_temperature: 0.1
+      max_humidity: 60%
+    on_boot_restore_from: DEFAULT_PRESET
+    default_preset: home
+    sensor: target_room_temperature
+    humidity_sensor: target_room_humidity
+    heat_deadband: 0.3
+    heat_overrun: 0.3
+    cool_deadband: 0.3
+    cool_overrun: 0.3
+    min_idle_time: 2min
+    min_cooling_off_time: 2min
+    min_heating_off_time: 2min
+    min_heating_run_time: 1min
+    min_cooling_run_time: 1min
+    min_fanning_off_time: 3min
+    min_fanning_run_time: 2min
+    min_fan_mode_switching_time: 5s
+    fan_only_action_uses_fan_mode_timer: true
+    fan_with_cooling: true
+    fan_with_heating: true
+    idle_action:
+      then:
+        - lambda: |-
+            id(requested_ac).turn_off();
+            id(requested_heat).turn_off();
+            if (id(climate_control).fan_mode != climate::CLIMATE_FAN_ON) {
+              id(requested_fan).turn_off();
+            }
+    heat_action:
+      then:
+        - lambda: |-
+            id(requested_heat).turn_on();
+            // if (id(climate_control).fan_mode == climate::CLIMATE_FAN_OFF) {
+            //   id(requested_fan).turn_on();
+            // }
+    cool_action:
+      then:
+        - lambda: |-
+            id(requested_ac).turn_on();
+            // if (id(climate_control).fan_mode != climate::CLIMATE_FAN_OFF) {
+            //   id(requested_fan).turn_on();
+            // }
+    fan_only_action:
+      then:
+        - switch.turn_on: requested_fan
+    fan_mode_auto_action:
+      then:
+        - lambda: |-
+            if (id(requested_ac).state || id(requested_heat).state) {
+              id(requested_fan).turn_on();
+            } else {
+              id(requested_fan).turn_off();
+            }
+    fan_mode_on_action:
+      then:
+        - switch.turn_on: requested_fan
+    fan_mode_off_action:
+      then:
+        - switch.turn_off: requested_fan
+
+    preset:
+      - name: home
+        default_target_temperature_low: 22
+        default_target_temperature_high: 24.5
+        mode: HEAT_COOL
+        fan_mode: AUTO
+      - name: eco
+        default_target_temperature_low: 21
+        default_target_temperature_high: 26
+        mode: HEAT_COOL
+        fan_mode: AUTO
+      - name: sleep
+        default_target_temperature_low: 21
+        default_target_temperature_high: 23
+        mode: HEAT_COOL
+        fan_mode: AUTO
+      - name: away
+        default_target_temperature_low: 16
+        default_target_temperature_high: 30
+        mode: HEAT_COOL
+        fan_mode: AUTO
+
+sensor:
+  - platform: dht
+    pin: 5
+    update_interval: 30s
+    humidity:
+      name: Humidity
+      id: rel_humidity
+      accuracy_decimals: 1
+
+    temperature:
+      name: Temperature
+      id: temperature
+      unit_of_measurement: °C
+      accuracy_decimals: 1
+
+  - platform: absolute_humidity
+    name: Absolute Humidity
+    id: abs_humidity
+    temperature: temperature
+    humidity: rel_humidity
+    accuracy_decimals: 1
+
+  # Room
+  - platform: homeassistant
+    name: Target Room Temperature
+    id: target_room_temperature
+    entity_id: sensor.thermostat_target_room_temperature
+
+  - platform: homeassistant
+    name: Target Room Humidity
+    id: target_room_humidity
+    entity_id: sensor.thermostat_target_room_humidity
+
+switch:
+  - platform: template
+    name: Climate Override
+    id: climate_override
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: A/C Override
+    id: override_ac
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: Heat Override
+    id: override_heat
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: Fan Override
+    id: override_fan
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: template
+    name: A/C Requested
+    id: requested_ac
+    internal: true
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: Heat Requested
+    id: requested_heat
+    internal: true
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+  - platform: template
+    name: Fan Requested
+    id: requested_fan
+    internal: true
+    optimistic: true
+    restore_mode: ALWAYS_OFF
+
+binary_sensor:
+  - platform: template
+    name: Computed A/C
+    id: computed_ac
+    lambda: |-
+      return id(climate_override).state ? id(override_ac).state : id(requested_ac).state;
+    on_state:
+      then:
+        - logger.log:
+            format: "Setting AC Pin to %d"
+            args: ['id(computed_ac).state']
+        - lambda: |-
+            if (id(computed_ac).state) id(pin_ac).turn_on();
+            else id(pin_ac).turn_off();
+  - platform: template
+    name: Computed Heat
+    id: computed_heat
+    lambda: |-
+      return id(climate_override).state ? id(override_heat).state : id(requested_heat).state;
+    on_state:
+      then:
+        - logger.log:
+            format: "Setting Heat Pin to %d"
+            args: ['id(computed_heat).state']
+        - lambda: |-
+            if (id(computed_heat).state) id(pin_heat).turn_on();
+            else id(pin_heat).turn_off();
+  - platform: template
+    name: Computed Fan
+    id: computed_fan
+    lambda: |-
+      return id(climate_override).state ? id(override_fan).state : id(requested_fan).state;
+    on_state:
+      then:
+        - logger.log:
+            format: "Setting Fan Pin to %d"
+            args: ['id(computed_fan).state']
+        - lambda: |-
+            if (id(computed_fan).state) id(pin_fan).turn_on();
+            else id(pin_fan).turn_off();
+
+output:
+  - platform: gpio
+    id: pin_ac
+    pin: 1
+  - platform: gpio
+    id: pin_heat
+    pin: 2
+  - platform: gpio
+    pin: 3
+    id: pin_fan
+
+esp32_camera: !remove
+esp32_camera_web_server: !remove

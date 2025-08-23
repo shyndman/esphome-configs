@@ -1,0 +1,184 @@
+substitutions:
+  friendly_name: P4 Bay Utility
+  name: "p4_bay_utility"
+  device_model: LILYGO T-Display-S3 AMOLED
+
+esphome:
+  name: $name
+  friendly_name: $friendly_name
+  platformio_options:
+    build_unflags: -Werror=all
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  manual_ip:
+    static_ip: ${ip_${name}}
+    gateway: 192.168.0.1
+    subnet: 255.255.252.0
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: $friendly_name Fallback Hotspot
+    password: "atFUVSG18Oan"
+
+captive_portal:
+
+logger:
+
+debug:
+  update_interval: 30s
+
+api:
+  on_client_connected:
+    - logger.log:
+        format: "Client %s connected to API with IP %s"
+        args: ["client_info.c_str()", "client_address.c_str()"]
+
+ota:
+  - platform: esphome
+
+# esp32_ble_tracker:
+#   scan_parameters:
+#     interval: 1100ms
+#     window: 1100ms
+#     active: true
+
+# bluetooth_proxy:
+#   active: true
+
+web_server:
+  port: 80
+  version: 3
+
+time:
+  - platform: homeassistant
+
+# font:
+#   - file: "https://github.com/IdreesInc/Monocraft/releases/download/v3.0/Monocraft.ttf"
+#     id: my_font
+#     size: 20
+
+spi:
+  id: quad_spi
+  type: quad
+  clk_pin: 47
+  data_pins:
+    - GPIO18
+    - GPIO07
+    - GPIO48
+    - GPIO05
+
+i2c:
+  sda: 3
+  scl: 2
+
+image:
+  - file: https://esphome.io/_images/logo.png
+    id: my_image
+    resize: 200x162
+    type: RGB24
+
+display:
+  - platform: qspi_amoled
+    model: RM67162
+    id: main_lcd
+    dimensions:
+      height: 240
+      width: 536
+    transform:
+      mirror_x: true
+      swap_xy: true
+    color_order: rgb
+    brightness: 255
+    cs_pin: GPIO06
+    reset_pin: GPIO17
+    enable_pin: GPIO38
+    lambda: |-
+      auto black = Color(0, 0, 0);
+      auto red = Color(255, 0, 0);
+      auto green = Color(0, 255, 0);
+      auto blue = Color(0, 0, 255);
+      auto white = Color(255, 255, 255);
+      it.filled_circle(20, 32, 15, black);
+      it.filled_circle(40, 32, 15, red);
+      it.filled_circle(60, 32, 15, green);
+      it.filled_circle(80, 32, 15, blue);
+      it.filled_circle(100, 32, 15, white);
+
+color:
+  - id: my_blue
+    blue: 100%
+  - id: my_red
+    red: 100%
+  - id: my_green
+    green: 100%
+  - id: my_white
+    red: 100%
+    blue: 100%
+    green: 100%
+  - id: my_yellow
+    hex: ffff00
+
+
+psram:
+  mode: octal
+
+sensor:
+  - platform: uptime
+    id: uptime_sensor
+    internal: True
+    update_interval: 30s
+    on_raw_value:
+      then:
+        - text_sensor.template.publish:
+            id: uptime_human
+            state: !lambda |-
+              int seconds = round(id(uptime_sensor).raw_state);
+              int days = seconds / (24 * 3600);
+              seconds = seconds % (24 * 3600);
+              int hours = seconds / 3600;
+              seconds = seconds % 3600;
+              int minutes = seconds /  60;
+              seconds = seconds % 60;
+              return (
+                (days ? to_string(days) + "d " : "") +
+                (hours ? to_string(hours) + "h " : "") +
+                (minutes ? to_string(minutes) + "m " : "") +
+                (to_string(seconds) + "s")
+              ).c_str();
+
+  - platform: internal_temperature
+    name: "Internal Temperature"
+    update_interval: 10s
+    unit_of_measurement: °C
+
+  - platform: wifi_signal
+    name: $friendly_name Wifi RSSI
+    update_interval: 10s
+
+text_sensor:
+  - platform: template
+    name: $friendly_name Uptime
+    id: uptime_human
+    icon: mdi:clock-start
+  - platform: wifi_info
+    ip_address:
+      name: $friendly_name IP
+    ssid:
+      name: $friendly_name SSID
+    bssid:
+      name: $friendly_name BSSID
+  - platform: debug
+    device:
+      name: "Device Info"
+    reset_reason:
+      name: "Reset Reason"

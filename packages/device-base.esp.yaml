@@ -1,0 +1,72 @@
+<<: !include ./device-ip-map.esp.yaml
+
+esphome:
+  friendly_name: $friendly_name
+  name: $name
+
+logger:
+  level: DEBUG
+
+debug:
+  update_interval: 5min
+
+time:
+  - platform: homeassistant
+    id: esptime
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  fast_connect: true
+
+  ap:
+  manual_ip:
+    gateway: 192.168.86.1
+    subnet: 255.255.252.0
+    static_ip: ${ip_${name}}
+
+captive_portal:
+
+safe_mode:
+
+api:
+  reboot_timeout: 5min
+
+ota:
+  - platform: esphome
+
+button:
+  - platform: restart
+    name: 'Restart'
+  - platform: safe_mode
+    name: 'Restart (Safe Mode)'
+
+binary_sensor:
+  - platform: status
+    id: node_status
+
+sensor:
+  - platform: debug
+    loop_time:
+      name: "Loop Time"
+  - platform: uptime
+    type: timestamp
+    name: Uptime Sensor
+  - platform: wifi_signal
+    name: Wifi RSSI
+    id: wifi_rssi
+    update_interval: 120s
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP
+    ssid:
+      name: SSID
+    bssid:
+      name: BSSID
+  - platform: debug
+    device:
+      name: 'Device Info'
+    reset_reason:
+      name: 'Reset Reason'

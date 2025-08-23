@@ -1,0 +1,7 @@
+substitutions:
+  friendly_name: 'Living Room Left Shelf Bulb'
+  name: 'living_room_left_shelf_bulb'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-rgbww-7w: !include packages/athom-rgbww-7w.esp.yaml

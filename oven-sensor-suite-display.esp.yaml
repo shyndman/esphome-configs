@@ -1,0 +1,71 @@
+substitutions:
+  friendly_name: Oven Sensor Suite Display
+  name: oven_sensor_suite_display
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  t-display-s3-amoled: !include packages/t-display-s3-amoled.esp.yaml
+
+display:
+  - id: !extend main_display
+    transform:
+      mirror_x: true
+      mirror_y: false
+      swap_xy: true
+    update_interval: never
+    auto_clear_enabled: true
+    lambda: |-
+      auto oven_temp = id(oven_temperature).state;
+      if (!isnan(oven_temp)) {
+        it.image(6, 20, id(stove_icon));
+        it.printf(82, 0, id(primary_stat_font), "%.1f°C", id(oven_temperature).state);
+      }
+
+font:
+  - id: primary_stat_font
+    file:
+      type: gfonts
+      family: Roboto
+      weight: Medium
+    size: 84
+    glyphs: '!"%()+=,-_.:°³/0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
+    bpp: 8
+  - id: secondary_stat_font
+    file: 'gfonts://Roboto'
+    size: 34
+    glyphs: '!"%()+=,-_.:°³/0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
+    bpp: 8
+
+image:
+  - file: mdi:stove
+    id: stove_icon
+    resize: 60x60
+
+light:
+  - platform: esp32_rmt_led_strip
+    name: "Status Light"
+    id: status_light
+    rgb_order: GRB
+    pin: 15
+    num_leds: 1
+    rmt_channel: 0
+    chipset: ws2812
+
+binary_sensor:
+  - id: !extend home_pressed
+    on_press:
+      then:
+        - lambda: |-
+            if (!id(is_display_on).state) {
+              id(main_display).update();
+            }
+            id(is_display_on).toggle();
+
+sensor:
+  - platform: homeassistant
+    name: "Oven Temperature"
+    id: oven_temperature
+    entity_id: sensor.oven_sensor_suite_oven_temperature
+    on_value:
+      then:
+        - component.update: main_display

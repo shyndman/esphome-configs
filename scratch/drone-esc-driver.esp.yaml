@@ -1,0 +1,64 @@
+substitutions:
+  friendly_name: Drone ESC Driver
+  name: drone_esc_driver
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+api:
+  reboot_timeout: 0s
+
+web_server:
+  version: 3
+
+wifi:
+  fast_connect: false
+  power_save_mode: NONE
+  output_power: 20.0dBm
+
+# PWM output for ESC
+output:
+  - platform: ledc  # use 'ledc' for ESP32
+    pin: GPIO10  # or whatever pin you're using
+    frequency: 50 Hz
+
+    id: esc_pwm
+
+servo:
+  - id: my_servo
+    output: esc_pwm
+    min_level: 5%
+    max_level: 10%
+    transition_length: 0.5s
+
+# Or for more direct control, use a template number
+number:
+  - platform: template
+    name: "ESC Throttle"
+    min_value: -100
+    initial_value: -100
+    max_value: 100
+    step: 1
+    optimistic: true
+    set_action:
+      then:
+        - servo.write:
+            id: my_servo
+            level: !lambda 'return x / 100.0;'

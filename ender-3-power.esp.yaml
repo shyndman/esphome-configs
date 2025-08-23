@@ -1,0 +1,7 @@
+substitutions:
+  friendly_name: 'Printer Plug (Ender)'
+  name: 'ender_3_power'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  s31-switch: !include packages/s31-switch.esp.yaml

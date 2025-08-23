@@ -1,0 +1,112 @@
+substitutions:
+  friendly_name: 'Fume Extractor'
+  name: fume_extractor
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esp8266:
+  board: esp12e
+  restore_from_flash: true
+  early_pin_init: false
+
+wifi:
+  power_save_mode: HIGH
+
+web_server:
+  version: 3
+
+logger:
+  level: INFO
+
+preferences:
+  flash_write_interval: 4min
+
+i2c:
+  sda: 4
+  scl: 5
+  scan: false
+
+binary_sensor:
+  - platform: gpio
+    id: fan_toggle
+    name: Fan Toggle
+    pin: 13
+    on_press:
+      then:
+        - switch.toggle:
+            id: fan_relay
+
+switch:
+  - platform: gpio
+    id: fan_relay
+    name: Fan Relay
+    pin: 12
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - component.update:
+            id: info_display
+    on_turn_off:
+      then:
+        - component.update:
+            id: info_display
+
+sensor:
+  - platform: adc
+    pin: A0
+    id: gas_voltage
+    name: Gas Voltage
+    update_interval: 10s
+  - platform: htu21d
+    model: sht21
+    update_interval: 30s
+    temperature:
+      name: "Temperature"
+      id: temperature
+      on_value:
+        - component.update:
+            id: info_display
+    humidity:
+      name: "Humidity"
+      id: humidity
+      on_value:
+        - component.update:
+            id: info_display
+
+display:
+  - platform: ssd1306_i2c
+    id: info_display
+    model: "SSD1306 128x64"
+    address: 0x3C
+    update_interval: never
+    lambda: |-
+      it.printf(0, 0, id(primary), "Fan: %s", id(fan_relay).state ? "On" : "Off");
+      it.printf(0, 27, id(secondary), "%d°C / %d%%", (int) id(temperature).state, (int) id(humidity).state);
+      if (id(wifi_rssi).state <= 0) {
+        it.image(0, 47, id(signal_icon));
+        it.printf(22, 48, id(secondary), "%ddB", (int) id(wifi_rssi).state);
+      }
+
+image:
+  - file: mdi:signal-cellular-3
+    id: signal_icon
+    type: binary
+    resize: 20x20
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 500
+    id: primary
+    size: 20
+    bpp: 1
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 500
+    id: secondary
+    size: 16
+    glyphs: '!"%()+=,-_.:°/?0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
+    bpp: 1

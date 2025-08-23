@@ -1,0 +1,90 @@
+substitutions:
+  friendly_name: Henry Bowl Computer
+  name: henry_bowl_computer
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+logger:
+  level: DEBUG
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+  on_boot:
+    then:
+      - delay: 1s
+      - if:
+          condition:
+            binary_sensor.is_off: water_detected
+          then:
+            - light.turn_on:
+                id: notification_light
+                red: 100%
+                green: 0%
+                blue: 0%
+                white: 10%
+                effect: flash_red
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: arduino
+
+api:
+  reboot_timeout: 0s
+
+web_server:
+  version: 3
+
+binary_sensor:
+  - platform: gpio
+    name: "Water Detected?"
+    id: water_detected
+    pin:
+      number: 20
+      mode:
+        input: true
+        pulldown: true
+    device_class: moisture
+    on_state:
+      then:
+        - if:
+            condition:
+              binary_sensor.is_off: water_detected
+            then:
+              - light.turn_on:
+                  id: notification_light
+                  brightness: 100%
+                  red: 100%
+                  green: 0%
+                  blue: 0%
+                  effect: flash_red
+            else:
+              - light.turn_off: notification_light
+
+light:
+  - platform: neopixelbus
+    name: "Notification Light"
+    id: notification_light
+    type: GRBW
+    variant: sk6812
+    pin: 5
+    num_leds: 2
+    effects:
+      - strobe:
+          name: flash_red
+          colors:
+            - state: true
+              red: 100%
+              green: 0%
+              blue: 0%
+              white: 10%
+              duration: 600ms
+            - state: false
+              duration: 600ms

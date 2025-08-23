@@ -1,0 +1,121 @@
+substitutions:
+  friendly_name: Theoretical Thermostat Scratch
+  name: thermostat_climate_scratch
+
+packages:
+  device-base: !include ../packages/device-base.yaml
+
+web_server:
+  version: 3
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    flash_size: 4MB
+    build_unflags: -Werror=all
+    upload_speed: 921600
+  on_boot:
+    then:
+      - light.control:
+          id: status_led
+          state: on
+          red: 100%
+          green: 0
+          blue: 0
+      - output.set_level:
+          id: pwm
+          level: 0%
+
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+logger:
+  level: INFO
+
+i2c:
+  scl: 3
+  sda: 4
+  scan: true
+
+binary_sensor:
+  - platform: gpio
+    id: transition_trigger
+    name: 'Trigger Transition'
+    pin:
+      number: 5
+      mode:
+        input: true
+        pulldown: true
+    on_click:
+      then:
+        - logger.log: "Toggling"
+        - light.toggle:
+            id: transistor_transition
+
+sensor:
+  # - platform: adc
+  #   name: "Input"
+  #   id: input
+  #   pin: 7
+  #   attenuation: auto
+  #   update_interval: 0.5s
+  #   unit_of_measurement: ''
+  #   filters:
+  #     - lambda: return 1.0 - ((x - 0.015) / (3.12445 - 0.015));
+  #     - clamp:
+  #         min_value: 0.0
+  #         max_value: 1.0
+  #   on_value:
+  #     then:
+  #       - lambda: |-
+  #           auto call = id(status_led).turn_on();
+  #           call.set_brightness(x);
+  #           call.perform();
+  #           id(pwm).set_level(x);
+
+    # on_value:
+    #   then:
+  - platform: ina260
+    address: 0x40
+    current:
+      name: "Current"
+      id: current
+    power:
+      name: "Power"
+      id: power
+    bus_voltage:
+      name: "Voltage"
+      id: voltage
+    update_interval: 0.5s
+
+output:
+  - platform: ledc
+    id: pwm
+    pin: 6
+    channel: 1
+    frequency: 500Hz
+
+light:
+  - platform: monochromatic
+    name: 'Transistor Transition'
+    id: transistor_transition
+    output: pwm
+    default_transition_length: 4s
+    restore_mode: ALWAYS_OFF
+  - platform: esp32_rmt_led_strip
+    internal: true
+    id: status_led
+    chipset: ws2812
+    num_leds: 1
+    rgb_order: RGB
+    pin: 21
+    rmt_channel: 0
+    default_transition_length: 0s

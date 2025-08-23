@@ -1,0 +1,35 @@
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: qio
+  on_boot:
+    priority: 600
+    then:
+    - light.turn_on:
+        id: pcb_led
+        brightness: 60%
+        red: 70%
+        green: 0%
+        blue: 100%
+
+esp32:
+  board: esp32-s3-devkitc-1
+  cpu_frequency: 240MHZ
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+
+psram:
+  mode: quad
+  speed: 80MHz
+
+light:
+  - platform: esp32_rmt_led_strip
+    name: "PCB LED"
+    id: pcb_led
+    pin: 21
+    num_leds: 1
+    chipset: ws2812
+    rgb_order: GRB
+    restore_mode: ALWAYS_ON

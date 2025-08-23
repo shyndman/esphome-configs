@@ -1,0 +1,119 @@
+substitutions:
+  friendly_name: Bedroom Presence
+  name: bedroom_presence
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+logger:
+  level: INFO
+
+sensor:
+  - platform: hx711
+    name: "Left-side Bed HX711"
+    id: "bed_left_hx711"
+    dout_pin: 1
+    clk_pin: 2
+    gain: 128
+    update_interval: 240ms
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 15
+          send_every: 8
+          send_first_at: 7
+      # - sliding_window_moving_average:
+      #     window_size: 11
+      #     send_every: 6
+      #     send_first_at: 5
+    on_value:
+      then:
+        - component.update: bed_left_normalized
+  - platform: template
+    name: "Left-side Bed Normalized"
+    id: "bed_left_normalized"
+    device_class: weight
+    update_interval: never # Manually published
+    accuracy_decimals: 0
+    lambda: |-
+      return id(bed_left_hx711).state;
+    filters:
+      - calibrate_linear:
+          - 760000 -> -5
+          - 749000 -> 0
+          - 740000 -> 10
+    on_value:
+      then:
+        - component.update: bed_left_occupancy
+
+  - platform: hx711
+    name: "Right-side Bed HX711"
+    id: "bed_right_hx711"
+    dout_pin: 13
+    clk_pin: 12
+    gain: 128
+    update_interval: 240ms
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 15
+          send_every: 8
+          send_first_at: 7
+    on_value:
+      then:
+        - component.update: bed_right_normalized
+  - platform: template
+    name: "Right-side Bed Normalized"
+    id: "bed_right_normalized"
+    device_class: weight
+    update_interval: never # Manually published
+    accuracy_decimals: 0
+    lambda: |-
+      return id(bed_right_hx711).state;
+    filters:
+      - calibrate_linear:
+          - 0 -> -5
+          - 1400 -> 0
+          - 14000 -> 10
+    on_value:
+      then:
+        - component.update: bed_right_occupancy
+
+text_sensor:
+  - platform: template
+    name: "Right-side Bed Occupancy"
+    id: "bed_right_occupancy"
+    update_interval: never
+    lambda: |-
+      auto strain = id(bed_right_normalized).state;
+      if (strain > 10) {
+        return {"Occupied"};
+      } else {
+        return {"Unoccupied"};
+      }
+  - platform: template
+    name: "Left-side Bed Occupancy"
+    id: "bed_left_occupancy"
+    update_interval: never
+    lambda: |-
+      auto strain = id(bed_left_normalized).state;
+      if (strain > 10) {
+        return {"Occupied"};
+      } else {
+        return {"Unoccupied"};
+      }

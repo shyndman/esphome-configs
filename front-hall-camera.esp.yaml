@@ -1,0 +1,136 @@
+substitutions:
+  friendly_name: Front Hall Camera
+  name: front_hall_camera
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  esp32s3-sense: !include packages/esp32s3-sense.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.arduino.memory_type: qio_opi
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+  on_boot:
+    - priority: -100
+      then:
+        - delay: 1s
+        - light.turn_on:
+            id: gill_lights
+            red: 0%
+            green: 0%
+            blue: 100%
+            white: 30%
+            color_mode: RGB_WHITE
+        - voice_assistant.start_continuous
+
+# web_server:
+#   version: 3
+
+logger:
+  level: INFO
+
+i2c:
+  - id: !remove bus_i2c
+
+sensor:
+  - platform: pulse_counter
+    unit_of_measurement: rpm
+    pin: 3
+    update_interval: 2m
+    name: "Fan RPM"
+
+esp32_camera:
+  resolution: 1280x1024
+  frame_buffer_count: 1
+  max_framerate: 5.0fps
+  jpeg_quality: 10
+  wb_mode: office
+
+  # vertical_flip: false
+  # horizontal_mirror: false
+
+voice_assistant:
+  microphone:
+    microphone: external_transcription_mic
+  use_wake_word: true
+  on_intent_start:
+    then:
+      - logger.log: "on_intent_start"
+  on_intent_progress:
+    then:
+      - logger.log: "on_intent_progress"
+  on_intent_end:
+    then:
+      - logger.log: "on_intent_end"
+  on_listening:
+    then:
+      - logger.log: "on_listening"
+  on_start:
+    then:
+      - logger.log: "on_start"
+  on_wake_word_detected:
+    then:
+      - logger.log: "on_wake_word_detected"
+  on_end:
+    then:
+      - logger.log: "on_end"
+  on_stt_end:
+    then:
+      - logger.log: "on_stt_end"
+  on_stt_vad_start:
+    then:
+      - logger.log: "on_stt_vad_start"
+  on_stt_vad_end:
+    then:
+      - logger.log: "on_stt_vad_end"
+  on_tts_start:
+    then:
+      - logger.log: "on_tts_start"
+  on_tts_end:
+    then:
+      - logger.log: "on_tts_end"
+  on_idle:
+    then:
+      - logger.log: "on_idle"
+  on_error:
+    then:
+      - logger.log: "on_error"
+  on_client_connected:
+    then:
+      - logger.log: "on_client_connected"
+  on_client_disconnected:
+    then:
+      - logger.log: "on_client_disconnected"
+
+i2s_audio:
+  - id: external_transcription_i2s
+    i2s_bclk_pin: 42
+    i2s_lrclk_pin: 44
+  # Remove sense mic's i2s, which is inside the enclosure
+  - id: !remove transcription_i2s
+
+microphone:
+  - id: external_transcription_mic
+    platform: i2s_audio
+    i2s_audio_id: external_transcription_i2s
+    i2s_din_pin: 41
+    adc_type: external
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    pdm: false
+    channel: left
+  # Remove sense's mic, which is inside the enclosure
+  - id: !remove transcription_mic
+    platform: i2s_audio
+
+light:
+  - platform: esp32_rmt_led_strip
+    name: "Gill Lights"
+    id: gill_lights
+    pin: 43
+    num_leds: 2
+    rgb_order: GRB
+    is_rgbw: true
+    chipset: ws2812

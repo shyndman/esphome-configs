@@ -1,0 +1,9 @@
+substitutions:
+  friendly_name: Back Stairs Wall Switches
+  name: back_stairs_switches
+
+<<: !include
+  file: 'packages/sonoff-dual-r3.esp.yaml'
+  vars:
+    switch_1_name: Kitchen Lights
+    switch_2_name: Back Stairs Lights

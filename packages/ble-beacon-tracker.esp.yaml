@@ -1,0 +1,53 @@
+substitutions:
+  henry_tile_mac_address: C0:7E:1A:60:AF:64
+
+esp32_ble_tracker:
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+
+bluetooth_proxy:
+  active: true
+
+binary_sensor:
+  - platform: ble_presence
+    name: Henry's Tile Presence
+    mac_address: ${henry_tile_mac_address}
+
+  # - platform: ble_presence
+  #   name: "Scott's Pixel Presence"
+  #   ibeacon_uuid: 7dee9c8d-6238-4098-833b-673119f28d5e
+  #   ibeacon_major: 100
+  #   ibeacon_minor: 40004
+  # - platform: ble_presence
+  #   name: "Scott's Laptop Presence"
+  #   mac_address: FC:B0:DE:18:0F:FE
+  # - platform: ble_presence
+  #   name: "Hilary's watch Presence"
+  #   irk: 456ca00d522b1a6905bbeee3ce1abd06
+  # - platform: ble_presence
+  #   name: "Hilary's iPhone Presence"
+  #   irk: 7e8bd15378892e50154eb120bff7502b
+
+sensor:
+  - platform: ble_rssi
+    name: Henry's Tile Rssi
+    mac_address: ${henry_tile_mac_address}
+
+    # - platform: ble_rssi
+    #   name: Scott's Pixel RSSI
+    #   ibeacon_uuid: 7dee9c8d-6238-4098-833b-673119f28d5e
+    #   ibeacon_major: 100
+    #   ibeacon_minor: 40004
+    # - platform: ble_rssi
+    #   name: "Scott's Laptop RSSI"
+    #   mac_address: FC:B0:DE:18:0F:FE
+    # - platform: ble_rssi
+    #   name: Hilary's watch RSSI
+    ## irk: 14D28455639849BD3FF9DDD4D804847D
+    #   irk: 456ca00d522b1a6905bbeee3ce1abd06
+    # - platform: ble_rssi
+    #   name: Hilary's iPhone RSSI
+    ## irk: 14D28455639849BD3FF9DDD4D804847D
+    # irk: 7e8bd15378892e50154eb120bff7502b

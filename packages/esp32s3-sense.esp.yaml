@@ -1,0 +1,93 @@
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+
+esp32:
+  board: esp32-s3-devkitc-1
+  cpu_frequency: 240MHz
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+      CONFIG_LWIP_MAX_SOCKETS: '16'
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+i2c:
+  - id: bus_i2c
+    sda: 5
+    scl: 6
+    scan: true
+  - id: camera_i2c
+    sda: 40
+    scl: 39
+    scan: false
+
+sensor:
+  - platform: internal_temperature
+    name: "Internal Temperature"
+    update_interval: 4s
+
+esp32_camera:
+  id: espcam
+  name: Camera
+  internal: true
+  # Physical config
+  external_clock:
+    pin: 10
+    frequency: 20MHz
+  i2c_id: camera_i2c
+  data_pins: [15, 17, 18, 16, 14, 12, 11, 48]
+  vsync_pin: 38
+  href_pin: 47
+  pixel_clock_pin: 13
+  # Camera config
+  resolution: 1280x720
+  jpeg_quality: 20
+  idle_framerate: 0.2fps
+  max_framerate: 30.0fps
+  wb_mode: home # white balance
+  agc_mode: auto # automatic gain
+  agc_gain_ceiling: 64x
+  aec_mode: auto # automatic exposure control
+  ae_level: 1 # auto exposure level
+  aec2: true  # automatic exposure
+
+esp32_camera_web_server:
+  - port: 8080
+    mode: stream
+  # - port: 8081
+  #   mode: snapshot
+
+# Configuration for I2S audio
+i2s_audio:
+  - id: transcription_i2s
+    i2s_lrclk_pin: 46 # Note: labeled as "useless"
+    i2s_bclk_pin: 42
+
+# Configuration for the microphone using I2S audio
+microphone:
+  - id: transcription_mic
+    platform: i2s_audio
+    i2s_audio_id: transcription_i2s
+    i2s_din_pin: 41
+    adc_type: external
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    pdm: true
+    channel: left
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: led_output
+
+light:
+  - platform: monochromatic
+    output: led_output
+    id: onboard_led

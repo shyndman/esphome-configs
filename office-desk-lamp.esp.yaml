@@ -1,0 +1,7 @@
+substitutions:
+  friendly_name: 'Office Desk Lamp'
+  name: 'office_desk_lamp'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-rgbww-7w: !include packages/athom-rgbww-7w.esp.yaml

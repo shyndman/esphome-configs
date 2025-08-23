@@ -1,0 +1,142 @@
+substitutions:
+  friendly_name: Oven Sensor Suite
+  name: oven_sensor_suite
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: arduino
+
+spi:
+  - id: max_spi
+    clk_pin: 1
+    miso_pin: 2
+    mosi_pin: 3
+
+i2c:
+  - scl: 8
+    sda: 7
+    scan: True
+
+bme68x_bsec2_i2c:
+  address: 0x77
+  model: BME688
+  operating_age: 28d
+  sample_rate: LP
+  supply_voltage: 3.3V
+  state_save_interval: 6h
+  temperature_offset: 3.2
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: "BME68x Temperature"
+      id: air_temperature
+    pressure:
+      name: "BME68x Pressure"
+      id: air_pressure
+    humidity:
+      name: "BME68x Humidity"
+      id: rel_humidity
+    gas_resistance:
+      name: "BME68x Gas Resistance"
+    iaq:
+      name: "BME68x IAQ"
+    iaq_static:
+      name: "BME68x IAQ Static"
+      id: air_quality
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
+      id: air_quality_accuracy
+    co2_equivalent:
+      name: "BME68x CO2 Equivalent"
+      id: co2_level
+    breath_voc_equivalent:
+      name: "BME68x Breath VOC Equivalent"
+      id: breath_voc_level
+
+  - platform: absolute_humidity
+    name: Absolute Humidity
+    id: abs_humidity
+    temperature: air_temperature
+    humidity: rel_humidity
+    accuracy_decimals: 1
+
+  - platform: pmsa003i
+    pm_1_0:
+      name: "PMSA PM1.0"
+    pm_2_5:
+      name: "PMSA PM2.5"
+    pm_10_0:
+      name: "PMSA PM10.0"
+    pmc_0_3:
+      name: "PMSA PMC >0.3µm"
+      id: pmc_0_3
+    pmc_0_5:
+      name: "PMSA PMC >0.5µm"
+      id: pmc_0_5
+    pmc_1_0:
+      name: "PMSA PMC >1µm"
+      id: pmc_1_0
+    pmc_2_5:
+      name: "PMSA PMC >2.5µm"
+      id: pmc_2_5
+    pmc_5_0:
+      name: "PMSA PMC >5µm"
+      id: pmc_5_0
+    pmc_10_0:
+      name: "PMSA PMC >10µm"
+      id: pmc_10_0
+    update_interval: 30s
+
+  - platform: veml7700
+    address: 0x10
+    ambient_light: "VEML Ambient light"
+    actual_gain: "VEML Actual gain"
+    actual_integration_time: "VEML Actual integration time"
+    full_spectrum: "VEML Full Spectrum"
+    infrared: "VEML Near-IR Spectrum"
+    update_interval: 5s
+
+  - platform: max31865
+    name: "Oven Temperature"
+    id: oven_temperature
+    spi_id: max_spi
+    cs_pin: 4
+    reference_resistance: 4300 Ω
+    rtd_nominal_resistance: 1000 Ω
+    rtd_wires: 2
+    update_interval: 6s
+    on_raw_value:
+      then:
+        - lambda: |-
+            if (isnan(x)) return;
+
+            auto oven_sensor = id(oven_temperature);
+            auto last_update_interval = oven_sensor->get_update_interval();
+
+            if (x > 38.0) {
+              oven_sensor->set_update_interval(1000);
+            } else {
+              oven_sensor->set_update_interval(6000);
+            }
+
+            if (last_update_interval != oven_sensor->get_update_interval()) {
+              oven_sensor->start_poller();
+            }
+
+text_sensor:
+  - platform: bme68x_bsec2
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"

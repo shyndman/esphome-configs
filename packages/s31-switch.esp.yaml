@@ -1,0 +1,83 @@
+defaults:
+  power_sensor_update_frequency: 15s
+
+esp8266:
+  board: esp12e
+  restore_from_flash: true
+  early_pin_init: false
+
+preferences:
+  flash_write_interval: 4min
+
+logger:
+  baud_rate: 0 # (UART logging interferes with cse7766)
+  logs:
+    sensor: DEBUG # (Overide any global setting, to VERBOSE will spamming the cse7766 sensors)
+
+uart:
+  rx_pin: RX
+  baud_rate: 4800
+  parity: EVEN
+
+binary_sensor:
+  - platform: gpio
+    name: Power Toggle
+    pin:
+      number: 0
+      mode: INPUT_PULLUP
+      inverted: True
+    on_press:
+      - switch.toggle: relay
+
+sensor:
+  - platform: cse7766
+    current:
+      name: Current
+      accuracy_decimals: 2
+      filters:
+        - throttle_average: ${power_sensor_update_frequency}
+    voltage:
+      name: Voltage
+      accuracy_decimals: 2
+      filters:
+        - throttle_average: ${power_sensor_update_frequency}
+    power:
+      name: Power
+      accuracy_decimals: 2
+      id: daily_power
+      filters:
+        - throttle_average: ${power_sensor_update_frequency}
+    energy:
+      name: Energy
+      accuracy_decimals: 2
+      filters:
+        - throttle: ${power_sensor_update_frequency}
+    apparent_power: #(only available with version 2024.3.0 or greater)
+      name: Apparent Power
+      filters:
+        - throttle_average: ${power_sensor_update_frequency}
+    power_factor: #(only available with version 2024.3.0 or greater)
+      name: Power Factor
+      accuracy_decimals: 2
+      filters:
+        - throttle_average: ${power_sensor_update_frequency}
+  - platform: total_daily_energy #(Optional, not specific to cse7766)
+    name: Daily Energy
+    power_id: daily_power
+    accuracy_decimals: 2
+
+switch:
+  - platform: gpio
+    id: relay
+    name: Relay
+    pin: 12
+    restore_mode: RESTORE_DEFAULT_ON
+
+light:
+  - platform: status_led
+    name: "Status LED"
+    id: blue_led
+    disabled_by_default: true
+    pin:
+      number: 13
+      inverted: true

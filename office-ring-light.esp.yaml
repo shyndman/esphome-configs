@@ -1,0 +1,102 @@
+substitutions:
+  friendly_name: Office Ring Light
+  name: office_ring_light
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+
+logger:
+  level: DEBUG
+
+web_server:
+  version: 3
+
+i2c:
+  - id: i2c_display
+    scl: 6
+    sda: 5
+    frequency: 400kHz
+    scan: false
+
+globals:
+  - id: light_color
+    type: int
+    restore_value: yes
+    initial_value: 0
+  # Example for global string variable
+  - id: brightness
+    type: int
+    restore_value: yes
+    initial_value: 10
+
+select:
+  - platform: template
+    name: Mode
+    id: LED Colors
+    options:
+     - "White and Yellow"
+     - "Yellow"
+     - "White"
+    initial_option: "White and Yellow"
+    set_action:
+      - logger.log:
+          format: "Chosen option: %s"
+          args: ["x.c_str()"]
+
+
+
+switch:
+  - platform: gpio
+    id: relay_signal_switch
+    name: Power
+    pin: 4
+    on_turn_on:
+    - delay: 150ms
+    - switch.turn_off: relay_signal_switch
+  - platform: gpio
+    id: cycle_light_temperature_signal_switch
+    name: Cycle Light Temperature
+    pin: 
+      number: 7
+      inverted: true
+      mode:
+        output: true
+    on_turn_on:
+    - delay: 150ms
+    - switch.turn_off: cycle_light_temperature_signal_switch
+  - platform: gpio
+    id: brightness_up_signal_switch
+    name: Increase Brightness
+    pin: 
+      number: 10
+      inverted: true
+      mode:
+        output: true
+    on_turn_on:
+    - delay: 150ms
+    - switch.turn_off: brightness_up_signal_switch
+  - platform: gpio
+    id: brightness_down_signal_switch
+    name: Decrease Brightness
+    pin: 
+      number: 21
+      inverted: true
+      mode:
+        output: true
+    on_turn_on:
+    - delay: 150ms
+    - switch.turn_off: brightness_down_signal_switch
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_12
+    size: 12
+
+display:
+  - platform: ssd1306_i2c
+    model: "SSD1306 72x40"
+    i2c_id: i2c_display
+    address: 0x3C
+    lambda: |-
+      it.print(0, 0, id(roboto_12), "Hello World!");

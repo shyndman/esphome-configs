@@ -1,0 +1,19 @@
+substitutions:
+  friendly_name: 'Washer Smart Plug'
+  name: 'washer_smart_plug'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-smart-plug-v2: !include packages/athom-smart-plug-v2.esp.yaml
+
+binary_sensor:
+  - platform: template
+    name: 'Is Washing?'
+    id: is_washing
+    device_class: running
+    lambda: |-
+      return id(power_sensor).state > 100;
+    filters:
+      # The washer's power draw fluctuates quite a bit during a cycle, so we
+      # wait for a couple minutes before sending the on->off state change
+      - delayed_off: 200s
