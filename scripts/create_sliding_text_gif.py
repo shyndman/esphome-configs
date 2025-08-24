@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.8"
 # dependencies = [
@@ -155,7 +155,8 @@ def create_sliding_animation(
     pause_frames: int,
     slide_out_frames: int,
     frame_duration: int,
-    output_file: str
+    output_file: str,
+    vertical_offset: int = 0
 ) -> None:
     """Create sliding text animation for binary display."""
     
@@ -168,7 +169,7 @@ def create_sliding_animation(
     
     # Calculate positions
     text_x = (width - text_width) // 2
-    center_y = (height - text_height) // 2
+    center_y = (height - text_height) // 2 + vertical_offset
     
     # Starting position (completely off-screen above)
     start_y = -text_height
@@ -189,35 +190,35 @@ def create_sliding_animation(
     
     # Slide-in frames
     for i in range(slide_in_frames):
-        img = Image.new('1', (width, height), color=1)  # White background
+        img = Image.new('1', (width, height), color=0)  # Black background
         draw = ImageDraw.Draw(img)
         
         # Interpolate Y position from start to center
         progress = i / (slide_in_frames - 1) if slide_in_frames > 1 else 1
         y_pos = int(start_y + (center_y - start_y) * progress)
         
-        draw.text((text_x, y_pos), text, font=font, fill=0)  # Black text
+        draw.text((text_x, y_pos), text, font=font, fill=1)  # White text
         frames.append(img)
         frame_num += 1
     
     # Pause frames
     for i in range(pause_frames):
-        img = Image.new('1', (width, height), color=1)
+        img = Image.new('1', (width, height), color=0)  # Black background
         draw = ImageDraw.Draw(img)
-        draw.text((text_x, center_y), text, font=font, fill=0)
+        draw.text((text_x, center_y), text, font=font, fill=1)  # White text
         frames.append(img)
         frame_num += 1
     
     # Slide-out frames  
     for i in range(slide_out_frames):
-        img = Image.new('1', (width, height), color=1)
+        img = Image.new('1', (width, height), color=0)  # Black background
         draw = ImageDraw.Draw(img)
         
         # Interpolate Y position from center to end
         progress = i / (slide_out_frames - 1) if slide_out_frames > 1 else 1
         y_pos = int(center_y + (end_y - center_y) * progress)
         
-        draw.text((text_x, y_pos), text, font=font, fill=0)
+        draw.text((text_x, y_pos), text, font=font, fill=1)  # White text
         frames.append(img)
         frame_num += 1
     
@@ -250,6 +251,7 @@ def main():
     parser.add_argument("--slide-out", type=int, default=8, help="Number of slide-out frames (default: 8)")
     parser.add_argument("--duration", type=int, default=100, help="Frame duration in ms (default: 100)")
     parser.add_argument("--output", default="sliding_text.gif", help="Output filename (default: sliding_text.gif)")
+    parser.add_argument("--vertical-offset", type=int, default=0, help="Vertical offset for center position in pixels (negative = up, positive = down)")
     
     args = parser.parse_args()
     
@@ -264,7 +266,8 @@ def main():
             args.pause,
             args.slide_out,
             args.duration,
-            args.output
+            args.output,
+            args.vertical_offset
         )
         print("Animation created successfully!")
     except Exception as e:
