@@ -15,11 +15,11 @@ HEIGHT=40
 FONT_LARGE="gfonts://Lexend Zetta@400"
 FONT_MEDIUM="gfonts://Lexend Zetta@400"
 
-# Animation timing (18fps with extended pause and transitions)
+# Animation timing (18fps with single pause frame)
 SLIDE_IN=9
-PAUSE=10  
+PAUSE=1  
 SLIDE_OUT=9
-DURATION=56  # ~56ms per frame = 18fps, ~1.6s total animation
+DURATION=56  # ~56ms per frame = 18fps
 
 # Position adjustment - raise text up a bit from center
 VERTICAL_OFFSET=-4  # Negative moves text up

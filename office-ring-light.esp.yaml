@@ -510,18 +510,20 @@ display:
       // Reset to first frame
       current_anim->set_frame(0);
       
-      // Play all 28 frames (9 slide-in + 10 pause + 9 slide-out)
-      for (int frame = 0; frame < 28; frame++) {
+      // Play all 19 frames (9 slide-in + 1 pause + 9 slide-out)
+      for (int frame = 0; frame < 19; frame++) {
         unsigned long frame_start = millis();
         
         current_anim->set_frame(frame);
         it.image(0, 0, current_anim);
-        ((esphome::ssd1306_i2c::I2CSSD1306*)&it)->display();  // Force display update after each frame
+        ((esphome::ssd1306_i2c::I2CSSD1306*)&it)->display();
         
         unsigned long processing_time = millis() - frame_start;
-        int remaining_delay = 56 - processing_time;
+        // Use 800ms delay for pause frame (frame 9), 56ms for all others
+        int target_delay = (frame == 9) ? 800 : 56;
+        int remaining_delay = target_delay - processing_time;
         if (remaining_delay > 0) {
-          delay(remaining_delay);  // Compensate for processing time to maintain 56ms per frame (18fps)
+          delay(remaining_delay);
         }
       }
       
