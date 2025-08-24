@@ -216,7 +216,7 @@ script:
 
 light:
   - platform: color_temperature
-    name: "Ring Light"
+    name: "CT Light"
     default_transition_length: 0s
     gamma_correct: 1.0
     brightness: brightness_output
