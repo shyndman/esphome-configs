@@ -141,9 +141,9 @@ script:
           id: show_display_message
           message: !lambda |-
             switch(mode) {
-              case 0: return std::string("W");    // White
-              case 1: return std::string("A");    // All (W+Y)
-              case 2: return std::string("Y");    // Yellow
+              case 0: return std::string("W");      // White
+              case 1: return std::string("W+Y");    // White + Yellow
+              case 2: return std::string("Y");      // Yellow
               default: return std::string("?");
             }
           duration_ms: 2000  # 2 seconds
@@ -393,20 +393,68 @@ output:
             return;
           }
 
-          // Apply the color mode change
-          id(apply_color_mode).execute(target_mode);
+          // Only apply and show animation if there's an actual change
+          if (target_mode != id(current_mode)) {
+            // Apply the color mode change
+            id(apply_color_mode).execute(target_mode);
 
-          // Show color change on display (light is already on)
-          id(show_color_message).execute(target_mode);
+            // Show color change animation (light is already on)
+            id(show_color_message).execute(target_mode);
+          } else {
+            ESP_LOGD("color_temp_output", "Target mode %d matches current - no animation needed", target_mode);
+          }
 
-font:
-  # Lexend Zetta fonts for command display - sizes measured with esphome-measure-string
-  - file: "gfonts://Lexend Zetta@400"
-    id: bruno_ace_large
-    size: 32  # For single chars/numbers: Y(29x40), W(39x40), A(30x40), 10(43x40)
-  - file: "gfonts://Lexend Zetta@400"
-    id: bruno_ace_medium
-    size: 26  # For power words: ON(55x33), OFF(72x33) - perfect fit for 72px width
+animation:
+  # Power state animations
+  - file: "assets/ring-light-animations/on.gif"
+    id: power_on_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/off.gif"
+    id: power_off_anim
+    type: BINARY
+  
+  # Brightness level animations
+  - file: "assets/ring-light-animations/1.gif"
+    id: brightness_1_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/2.gif"
+    id: brightness_2_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/3.gif"
+    id: brightness_3_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/4.gif"
+    id: brightness_4_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/5.gif"
+    id: brightness_5_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/6.gif"
+    id: brightness_6_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/7.gif"
+    id: brightness_7_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/8.gif"
+    id: brightness_8_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/9.gif"
+    id: brightness_9_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/10.gif"
+    id: brightness_10_anim
+    type: BINARY
+  
+  # Color mode animations
+  - file: "assets/ring-light-animations/w.gif"
+    id: color_white_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/a.gif"
+    id: color_all_anim
+    type: BINARY
+  - file: "assets/ring-light-animations/y.gif"
+    id: color_yellow_anim
+    type: BINARY
 
 display:
   - platform: ssd1306_i2c
@@ -420,23 +468,67 @@ display:
         return;
       }
 
-      // Get the message to display
+      // Get the message and corresponding animation
       std::string message = id(display_message);
+      auto current_anim = id(power_on_anim);  // Default, will be overridden
 
-      // Select appropriate font based on message content
-      auto font = id(bruno_ace_large);  // Default to large font
-      if (message == "ON" || message == "OFF") {
-        font = id(bruno_ace_medium);  // Use medium font for power words
+      if (message == "ON") {
+        current_anim = id(power_on_anim);
+      } else if (message == "OFF") {
+        current_anim = id(power_off_anim);
+      } else if (message == "1") {
+        current_anim = id(brightness_1_anim);
+      } else if (message == "2") {
+        current_anim = id(brightness_2_anim);
+      } else if (message == "3") {
+        current_anim = id(brightness_3_anim);
+      } else if (message == "4") {
+        current_anim = id(brightness_4_anim);
+      } else if (message == "5") {
+        current_anim = id(brightness_5_anim);
+      } else if (message == "6") {
+        current_anim = id(brightness_6_anim);
+      } else if (message == "7") {
+        current_anim = id(brightness_7_anim);
+      } else if (message == "8") {
+        current_anim = id(brightness_8_anim);
+      } else if (message == "9") {
+        current_anim = id(brightness_9_anim);
+      } else if (message == "10") {
+        current_anim = id(brightness_10_anim);
+      } else if (message == "W") {
+        current_anim = id(color_white_anim);
+      } else if (message == "W+Y") {
+        current_anim = id(color_all_anim);
+      } else if (message == "Y") {
+        current_anim = id(color_yellow_anim);
+      } else {
+        return; // No matching animation, display remains blank
       }
-      // Single characters and numbers use large font (default)
 
-      // Center the text on the 72x40 display
-      // Display dimensions: 72 wide x 40 tall
-      int x_center = 36;  // 72 / 2
-      int y_center = 20;  // 40 / 2
-
-      // Print centered text
-      it.printf(x_center, y_center, font, TextAlign::CENTER, "%s", message.c_str());
+      // Play through all frames of the animation with timing control
+      // Reset to first frame
+      current_anim->set_frame(0);
+      
+      // Play all 28 frames (9 slide-in + 10 pause + 9 slide-out)
+      for (int frame = 0; frame < 28; frame++) {
+        unsigned long frame_start = millis();
+        
+        current_anim->set_frame(frame);
+        it.image(0, 0, current_anim);
+        ((esphome::ssd1306_i2c::I2CSSD1306*)&it)->display();  // Force display update after each frame
+        
+        unsigned long processing_time = millis() - frame_start;
+        int remaining_delay = 56 - processing_time;
+        if (remaining_delay > 0) {
+          delay(remaining_delay);  // Compensate for processing time to maintain 56ms per frame (18fps)
+        }
+      }
+      
+      // Animation complete - clear display state to prevent repeated playback
+      id(display_active) = false;
+      id(display_message) = "";
+      id(display_timer) = 0;
 
 interval:
   - interval: 50ms  # Check timer every 50ms for smooth countdown
