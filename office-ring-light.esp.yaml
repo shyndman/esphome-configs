@@ -62,7 +62,7 @@ api:
         args: ["id(current_brightness)"]
     - logger.log:
         level: INFO
-        format: "Current Mode: %d (0=Yellow, 1=W+Y, 2=White)"
+        format: "Current Mode: %d (0=White, 1=W+Y, 2=Yellow)"
         args: ["id(current_mode)"]
     - logger.log:
         level: INFO
@@ -83,7 +83,7 @@ globals:
   - id: current_mode
     type: 'int'
     restore_value: yes
-    initial_value: '1'  # Start at W+Y mode (0=Yellow, 1=W+Y, 2=White)
+    initial_value: '1'  # Start at W+Y mode (0=White, 1=W+Y, 2=Yellow)
   - id: power_state
     type: bool
     restore_value: yes
@@ -141,9 +141,9 @@ script:
           id: show_display_message
           message: !lambda |-
             switch(mode) {
-              case 0: return std::string("Y");    // Yellow
+              case 0: return std::string("W");    // White
               case 1: return std::string("A");    // All (W+Y)
-              case 2: return std::string("W");    // White
+              case 2: return std::string("Y");    // Yellow
               default: return std::string("?");
             }
           duration_ms: 2000  # 2 seconds
@@ -331,11 +331,11 @@ output:
           // Map 0.0-1.0 to modes: 0.0-0.1=White, 0.1-0.5=W+Y, 0.5-1.0=Yellow
           int target_mode;
           if (state < 0.1) {
-            target_mode = 2; // White only
+            target_mode = 0; // White only
           } else if (state < 0.5) {
             target_mode = 1; // White + Yellow
           } else {
-            target_mode = 0; // Yellow only
+            target_mode = 2; // Yellow only
           }
 
           int current_mode_val = id(current_mode);
@@ -348,7 +348,7 @@ output:
           }
 
           // Calculate how many mode cycle presses needed
-          // Mode cycling: 0(Y) -> 1(W+Y) -> 2(W) -> 0(Y) -> ...
+          // Mode cycling: 0(W) -> 1(W+Y) -> 2(Y) -> 0(W) -> ...
           int steps = 0;
           int temp_mode = current_mode_val;
 
