@@ -88,6 +88,73 @@ globals:
     type: bool
     restore_value: yes
     initial_value: 'false'  # Start with light off
+  # Display management globals
+  - id: display_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'  # Display is blank by default
+  - id: display_message
+    type: std::string
+    restore_value: no
+    initial_value: '""'  # Message to show on display
+  - id: display_timer
+    type: 'int'
+    restore_value: no
+    initial_value: '0'  # Countdown timer in milliseconds
+  - id: pending_color_display
+    type: bool
+    restore_value: no
+    initial_value: 'false'  # Flag for pending color display after brightness
+
+script:
+  - id: show_display_message
+    parameters:
+      message: string
+      duration_ms: int
+    then:
+      - lambda: |-
+          ESP_LOGD("display", "Showing message: %s for %dms", message.c_str(), duration_ms);
+          id(display_message) = message;
+          id(display_timer) = duration_ms;
+          id(display_active) = true;
+  - id: show_power_message
+    parameters:
+      power_on: bool
+    then:
+      - script.execute:
+          id: show_display_message
+          message: !lambda "return power_on ? \"ON\" : \"OFF\";"
+          duration_ms: 2000  # 2 seconds
+  - id: show_brightness_message
+    parameters:
+      brightness_level: int
+    then:
+      - script.execute:
+          id: show_display_message
+          message: !lambda "return std::to_string(brightness_level + 1);"  # Convert 0-9 to 1-10
+          duration_ms: 2000  # 2 seconds
+  - id: show_color_message
+    parameters:
+      mode: int
+    then:
+      - script.execute:
+          id: show_display_message
+          message: !lambda |-
+            switch(mode) {
+              case 0: return std::string("Y");    // Yellow
+              case 1: return std::string("A");    // All (W+Y)
+              case 2: return std::string("W");    // White
+              default: return std::string("?");
+            }
+          duration_ms: 2000  # 2 seconds
+  - id: show_color_after_delay
+    parameters:
+      mode: int
+    then:
+      - delay: 800ms  # Wait for brightness display to finish
+      - script.execute:
+          id: show_color_message
+          mode: !lambda "return mode;"
 
 light:
   - platform: color_temperature
@@ -185,6 +252,8 @@ output:
               ESP_LOGD("brightness_output", "Turning light OFF");
               id(relay_signal_switch).turn_on();  // Toggle power off
               id(power_state) = false;
+              // Show power off message (highest priority)
+              id(show_power_message).execute(false);
             } else {
               ESP_LOGD("brightness_output", "Light already OFF - ignoring");
             }
@@ -192,11 +261,15 @@ output:
           }
 
           // Handle HA "on" command (brightness > 0)
-          if (!id(power_state)) {
+          bool was_off = !id(power_state);
+          if (was_off) {
             ESP_LOGD("brightness_output", "Light is OFF - turning ON first");
             id(relay_signal_switch).turn_on();  // Toggle power on
             id(power_state) = true;
             delay(500);  // Give light time to boot up
+            // Show power on message (highest priority)
+            id(show_power_message).execute(true);
+            return; // Don't show brightness when powering on
           }
 
           // Convert 0.0-1.0 to 0-9 brightness level
@@ -229,6 +302,12 @@ output:
 
           // Update stored state
           id(current_brightness) = target_brightness;
+          
+          // Show brightness change on display
+          id(show_brightness_message).execute(target_brightness);
+          
+          // Set flag for pending color display (color comes after brightness)
+          id(pending_color_display) = true;
 
   - platform: template
     id: color_temp_output
@@ -286,11 +365,27 @@ output:
 
           // Update stored state
           id(current_mode) = target_mode;
+          
+          // Handle sequential display logic
+          if (id(pending_color_display)) {
+            // Brightness was shown first, now show color after a short delay
+            id(pending_color_display) = false;
+            // Wait for brightness display to finish (2000ms), then show color
+            // We'll use a script with delay for this
+            id(show_color_after_delay).execute(target_mode);
+          } else {
+            // Color change only, show immediately
+            id(show_color_message).execute(target_mode);
+          }
 
 font:
-  - file: "gfonts://Roboto"
-    id: roboto_12
-    size: 12
+  # Lexend Zetta fonts for command display - sizes measured with esphome-measure-string
+  - file: "gfonts://Lexend Zetta@400"
+    id: bruno_ace_large
+    size: 32  # For single chars/numbers: Y(29x40), W(39x40), A(30x40), 10(43x40)
+  - file: "gfonts://Lexend Zetta@400"
+    id: bruno_ace_medium  
+    size: 26  # For power words: ON(55x33), OFF(72x33) - perfect fit for 72px width
 
 display:
   - platform: ssd1306_i2c
@@ -298,16 +393,41 @@ display:
     i2c_id: i2c_display
     address: 0x3C
     lambda: |-
-      // Show current brightness level
-      it.printf(0, 0, id(roboto_12), "Level: %d", id(current_brightness));
-
-      // Show current mode
-      const char* mode_names[] = {"Yellow", "W+Y", "White"};
-      it.printf(0, 14, id(roboto_12), "Mode: %s", mode_names[id(current_mode)]);
-
-      // Show connection status
-      if (api::global_api_server->is_connected()) {
-        it.print(0, 28, id(roboto_12), "HA: OK");
-      } else {
-        it.print(0, 28, id(roboto_12), "HA: --");
+      // Display is mostly blank, only shows messages when active
+      if (!id(display_active) || id(display_message).empty()) {
+        // Display is off/blank
+        return;
       }
+      
+      // Get the message to display
+      std::string message = id(display_message);
+      
+      // Select appropriate font based on message content
+      auto font = id(bruno_ace_large);  // Default to large font
+      if (message == "ON" || message == "OFF") {
+        font = id(bruno_ace_medium);  // Use medium font for power words
+      }
+      // Single characters and numbers use large font (default)
+      
+      // Center the text on the 72x40 display
+      // Display dimensions: 72 wide x 40 tall
+      int x_center = 36;  // 72 / 2
+      int y_center = 20;  // 40 / 2
+      
+      // Print centered text
+      it.printf(x_center, y_center, font, TextAlign::CENTER, "%s", message.c_str());
+
+interval:
+  - interval: 50ms  # Check timer every 50ms for smooth countdown
+    then:
+      - lambda: |-
+          if (id(display_active) && id(display_timer) > 0) {
+            id(display_timer) = id(display_timer) - 50;  // Subtract 50ms
+            if (id(display_timer) <= 0) {
+              // Timer expired, clear display
+              ESP_LOGD("display", "Display timer expired, clearing display");
+              id(display_active) = false;
+              id(display_message) = "";
+              id(display_timer) = 0;
+            }
+          }
