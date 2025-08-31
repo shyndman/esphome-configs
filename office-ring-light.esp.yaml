@@ -510,7 +510,7 @@ display:
       // Reset to first frame
       current_anim->set_frame(0);
       
-      // Play all 19 frames (9 slide-in + 1 pause + 9 slide-out)
+      // Play all 19 frames (6 slide-in + 1 pause + 12 slide-out)
       for (int frame = 0; frame < 19; frame++) {
         unsigned long frame_start = millis();
         
@@ -520,7 +520,7 @@ display:
         
         unsigned long processing_time = millis() - frame_start;
         // Use 800ms delay for pause frame (frame 9), 56ms for all others
-        int target_delay = (frame == 9) ? 800 : 56;
+        int target_delay = (frame == 7) ? 800 : 56;
         int remaining_delay = target_delay - processing_time;
         if (remaining_delay > 0) {
           delay(remaining_delay);
