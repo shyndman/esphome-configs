@@ -79,3 +79,41 @@ This is an ESPHome configuration repository for managing IoT devices in a home a
 - Validate configurations before deployment: `esphome config`
 - Monitor device logs during development: `esphome logs`
 - Test OTA updates before deploying to production devices
+
+## Advanced Techniques
+
+### Smooth Display Animations
+For frame-by-frame animation control on SSD1306 displays, you can manually control animation playback in the display lambda:
+
+```yaml
+display:
+  - platform: ssd1306_i2c
+    lambda: |-
+      // Play all frames of animation with precise timing
+      current_anim->set_frame(0);
+      for (int frame = 0; frame < total_frames; frame++) {
+        unsigned long frame_start = millis();
+        
+        current_anim->set_frame(frame);
+        it.image(0, 0, current_anim);
+        ((esphome::ssd1306_i2c::I2CSSD1306*)&it)->display();
+        
+        unsigned long processing_time = millis() - frame_start;
+        int remaining_delay = frame_duration_ms - processing_time;
+        if (remaining_delay > 0) {
+          delay(remaining_delay);
+        }
+      }
+      // Clear state to prevent repeated playback
+      id(display_active) = false;
+```
+
+**Key points:**
+- `set_frame(n)` jumps to specific animation frames
+- Cast display to `I2CSSD1306*` to access `display()` method
+- Measure processing time with `millis()` to maintain precise frame intervals
+- Compensate delay for rendering overhead to achieve target frame rate
+- Clear display state after animation completes
+- Use with ESPHome animation components loaded from GIF files
+
+**Example use case:** `office-ring-light.esp.yaml` uses this technique for sliding text animations with 22 frames at 83ms intervals, creating smooth visual feedback for device state changes.
