@@ -4,11 +4,8 @@ substitutions:
 
 packages:
   device-base: !include packages/device-base.esp.yaml
-  esp32s3-sense: !include packages/esp32s3-sense.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
   ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
-
-i2c:
-  - id: !remove sensor
 
 climate:
   - platform: thermostat
