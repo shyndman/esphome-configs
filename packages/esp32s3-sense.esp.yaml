@@ -28,11 +28,6 @@ i2c:
     scl: 39
     scan: false
 
-sensor:
-  - platform: internal_temperature
-    name: "Internal Temperature"
-    update_interval: 4s
-
 esp32_camera:
   id: espcam
   name: Camera
