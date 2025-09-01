@@ -1,7 +1,0 @@
-substitutions:
-  friendly_name: 'Living Room Floor Lamp'
-  name: 'living_room_floor_lamp'
-
-packages:
-  device-base: !include packages/device-base.esp.yaml
-  athom-rgbct-15w: !include packages/athom-rgbct-15w.esp.yaml
