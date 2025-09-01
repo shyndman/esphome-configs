@@ -20,3 +20,9 @@ api:
 status_led:
   pin:
     number: 8
+
+wifi:
+  power_save_mode: none
+  output_power: 20.0dB
+  enable_btm: true
+  enable_rrm: true

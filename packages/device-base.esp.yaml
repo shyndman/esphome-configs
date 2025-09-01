@@ -56,9 +56,7 @@ sensor:
     name: Wifi RSSI
     id: wifi_rssi
     update_interval: 120s
-  - platform: internal_temperature
-    name: "Internal Temperature"
-    update_interval: 150s
+
 
 text_sensor:
   - platform: wifi_info
