@@ -3,7 +3,7 @@ substitutions:
   name: drone_esc_driver
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   supermini: !include packages/esp32c3-supermini.esp.yaml
 
 esphome:

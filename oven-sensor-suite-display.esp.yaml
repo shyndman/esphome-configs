@@ -3,7 +3,7 @@ substitutions:
   name: oven_sensor_suite_display
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   t-display-s3-amoled: !include packages/t-display-s3-amoled.esp.yaml
 
 display:

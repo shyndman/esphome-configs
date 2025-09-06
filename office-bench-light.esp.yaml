@@ -3,8 +3,8 @@ substitutions:
   name: office_bench_light
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
-  ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
+  # ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
 
 external_components:
 - source: github://shyndman/esphome-neewer-ble@v1.0.2-shyndman

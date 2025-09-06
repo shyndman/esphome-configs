@@ -3,7 +3,7 @@ substitutions:
   name: smelly_fridge_magnet_ctrl
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   esp32s3-zero: !include packages/esp32s3-zero.esp.yaml
 
 i2c:

@@ -3,7 +3,7 @@ substitutions:
   name: environment_scratch
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
 
 esphome:
   platformio_options:

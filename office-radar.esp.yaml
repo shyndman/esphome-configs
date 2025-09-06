@@ -3,6 +3,6 @@ substitutions:
   name: office_radar
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   supermini: !include packages/esp32c3-supermini.esp.yaml
   mm-wave-presence: !include packages/mm-wave-presence.esp.yaml

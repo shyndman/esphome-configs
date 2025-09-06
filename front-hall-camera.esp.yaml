@@ -3,7 +3,7 @@ substitutions:
   name: front_hall_camera
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   esp32s3-sense: !include packages/esp32s3-sense.esp.yaml
 
 esphome:

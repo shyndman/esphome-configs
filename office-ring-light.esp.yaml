@@ -29,7 +29,7 @@ substitutions:
   name: office_ring_light
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   supermini: !include packages/esp32c3-supermini.esp.yaml
 
 logger:
@@ -412,7 +412,7 @@ animation:
   - file: "assets/ring-light-animations/off.gif"
     id: power_off_anim
     type: BINARY
-  
+
   # Brightness level animations
   - file: "assets/ring-light-animations/1.gif"
     id: brightness_1_anim
@@ -444,7 +444,7 @@ animation:
   - file: "assets/ring-light-animations/10.gif"
     id: brightness_10_anim
     type: BINARY
-  
+
   # Color mode animations
   - file: "assets/ring-light-animations/w.gif"
     id: color_white_anim
@@ -509,15 +509,15 @@ display:
       // Play through all frames of the animation with timing control
       // Reset to first frame
       current_anim->set_frame(0);
-      
+
       // Play all 19 frames (6 slide-in + 1 pause + 12 slide-out)
       for (int frame = 0; frame < 19; frame++) {
         unsigned long frame_start = millis();
-        
+
         current_anim->set_frame(frame);
         it.image(0, 0, current_anim);
         ((esphome::ssd1306_i2c::I2CSSD1306*)&it)->display();
-        
+
         unsigned long processing_time = millis() - frame_start;
         // Use 800ms delay for pause frame (frame 9), 56ms for all others
         int target_delay = (frame == 7) ? 800 : 56;
@@ -526,7 +526,7 @@ display:
           delay(remaining_delay);
         }
       }
-      
+
       // Animation complete - clear display state to prevent repeated playback
       id(display_active) = false;
       id(display_message) = "";
