@@ -3,9 +3,27 @@ substitutions:
   name: thermostat_climate_ctrl
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
   supermini: !include packages/esp32c3-supermini.esp.yaml
   ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
+
+deep_sleep:
+  id: connection_deep_sleep
+
+api:
+  on_client_disconnected:
+    then:
+      - delay: 2min
+      - if:
+          condition:
+            api.connected:
+          then:
+            - logger.log: "API reconnected, cancelling deep sleep"
+          else:
+            - logger.log: "API still disconnected after 2 minutes, entering deep sleep"
+            - deep_sleep.enter:
+                id: connection_deep_sleep
+                sleep_duration: 30s
 
 climate:
   - platform: thermostat
