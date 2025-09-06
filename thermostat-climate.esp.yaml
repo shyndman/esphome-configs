@@ -119,7 +119,7 @@ climate:
 
 sensor:
   - platform: dht
-    pin: 5
+    pin: 9
     update_interval: 30s
     humidity:
       name: Humidity
@@ -235,13 +235,10 @@ binary_sensor:
 output:
   - platform: gpio
     id: pin_ac
-    pin: 1
+    pin: 5
   - platform: gpio
     id: pin_heat
-    pin: 2
+    pin: 6
   - platform: gpio
-    pin: 3
+    pin: 7
     id: pin_fan
-
-esp32_camera: !remove
-esp32_camera_web_server: !remove
