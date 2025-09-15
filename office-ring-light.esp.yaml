@@ -38,11 +38,6 @@ logger:
 preferences:
   flash_write_interval: never
 
-web_server:
-  version: 3
-
-esphome:
-
 api:
   on_client_connected:
     - logger.log:
