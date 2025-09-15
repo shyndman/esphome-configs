@@ -152,7 +152,7 @@ script:
           then:
             - logger.log: "Sending mode cycle press"
             - switch.turn_on: cycle_light_temperature_signal_switch
-            - delay: 100ms
+            - delay: 150ms
   - id: send_brightness_up_presses
     mode: single
     parameters:
@@ -163,7 +163,7 @@ script:
           then:
             - logger.log: "Sending brightness UP press"
             - switch.turn_on: brightness_up_signal_switch
-            - delay: 100ms
+            - delay: 150ms
   - id: send_brightness_down_presses
     mode: single
     parameters:
@@ -174,7 +174,7 @@ script:
           then:
             - logger.log: "Sending brightness DOWN press"
             - switch.turn_on: brightness_down_signal_switch
-            - delay: 100ms
+            - delay: 150ms
   - id: apply_color_mode
     parameters:
       target_mode: int
@@ -226,7 +226,7 @@ switch:
     entity_category: diagnostic
     pin: 4
     on_turn_on:
-    - delay: 100ms
+    - delay: 150ms
     - switch.turn_off: relay_signal_switch
   - platform: gpio
     id: cycle_light_temperature_signal_switch
@@ -238,7 +238,7 @@ switch:
       mode:
         output: true
     on_turn_on:
-    - delay: 100ms
+    - delay: 150ms
     - switch.turn_off: cycle_light_temperature_signal_switch
   - platform: gpio
     id: brightness_up_signal_switch
@@ -250,7 +250,7 @@ switch:
       mode:
         output: true
     on_turn_on:
-    - delay: 100ms
+    - delay: 150ms
     - switch.turn_off: brightness_up_signal_switch
   - platform: gpio
     id: brightness_down_signal_switch
@@ -262,7 +262,7 @@ switch:
       mode:
         output: true
     on_turn_on:
-    - delay: 100ms
+    - delay: 150ms
     - switch.turn_off: brightness_down_signal_switch
 
 button:
@@ -276,19 +276,19 @@ button:
           count: 9  # Max brightness levels, ensure we're at 0
           then:
             - switch.turn_on: brightness_down_signal_switch
-            - delay: 100ms
+            - delay: 150ms
       # Set to stored brightness
       - repeat:
           count: !lambda "return id(current_brightness);"
           then:
             - switch.turn_on: brightness_up_signal_switch
-            - delay: 100ms
+            - delay: 150ms
       # Cycle to stored mode (always start from Yellow=0 and cycle to target)
       - repeat:
           count: !lambda "return id(current_mode);"
           then:
             - switch.turn_on: cycle_light_temperature_signal_switch
-            - delay: 100ms
+            - delay: 150ms
       - logger.log: "Ring light recalibration complete"
 
 output:
