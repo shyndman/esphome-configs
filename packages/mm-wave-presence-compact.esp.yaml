@@ -1,0 +1,14 @@
+packages:
+  - !include mm-wave-presence-shared.esp.yaml
+
+# This defines an interface where the user selects a gate with the slider, then
+# modifies its still and move threshold values, and continues on to the next
+# one.
+number:
+  - platform: ld2420
+    gate_select:
+      name: Select Gate to Set
+    still_threshold:
+      name: Still Threshold Value
+    move_threshold:
+      name: Move Threshold Value

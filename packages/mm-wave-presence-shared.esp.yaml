@@ -1,0 +1,72 @@
+uart:
+  rx_pin: 7
+  tx_pin: 6
+  baud_rate: 115200
+  parity: NONE
+  stop_bits: 1
+
+ld2420:
+
+text_sensor:
+  - platform: ld2420
+    fw_version:
+      name: LD2420 Firmware
+
+sensor:
+  - platform: ld2420
+    moving_distance:
+      name : Moving Distance
+
+binary_sensor:
+  - platform: ld2420
+    has_target:
+      name: Presence
+
+select:
+  - platform: ld2420
+    operating_mode:
+      name: Operating Mode
+
+number:
+  - platform: ld2420
+    presence_timeout:
+      name: Presence Timeout
+      icon: mdi:timer-outline
+    min_gate_distance:
+      name: Gate Minimum
+      icon: mdi:arrow-collapse-left
+    max_gate_distance:
+      name: Gate Maximum
+      icon: mdi:arrow-collapse-right
+    gate_move_sensitivity:
+      name: Move Sensitivity Factor
+      icon: mdi:percent-box-outline
+    gate_still_sensitivity:
+      name: Still Sensitivity Factor
+      icon: mdi:percent-box-outline
+
+    # Device configs should either import mm-wave-presence-compact.esp.yaml,
+    # or alternatively define individual gate settings of interest, eg.
+    #
+    #    gate_0:
+    #      move_threshold:
+    #        name: Gate 0 Move Threshold
+    #      still_threshold:
+    #        name: Gate 0 Still Threshold
+    #    gate_1:
+    #      move_threshold:
+    #        name: Gate 1 Move Threshold
+    #      still_threshold:
+    #        name: Gate 1 Still Threshold
+    #
+
+button:
+  - platform: ld2420
+    apply_config:
+      name: Apply Config
+    factory_reset:
+      name: Factory Reset
+    restart_module:
+      name: Restart Module
+    revert_config:
+      name: Undo Edits

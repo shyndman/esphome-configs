@@ -1,0 +1,55 @@
+substitutions:
+  friendly_name: Living Room Radar
+  name: living_room_radar
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+  mm-wave-presence: !include packages/mm-wave-presence-shared.esp.yaml
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  cpu_frequency: 80MHZ
+  framework:
+    type: esp-idf
+
+number:
+  - platform: ld2420
+
+    # 0-69cm
+    gate_0:
+      move_threshold:
+        name: Gate 0 Move Threshold
+      still_threshold:
+        name: Gate 0 Still Threshold
+    # 70-139cm
+    gate_1:
+      move_threshold:
+        name: Gate 1 Move Threshold
+      still_threshold:
+        name: Gate 1 Still Threshold
+    # 140-209cm
+    gate_2:
+      move_threshold:
+        name: Gate 2 Move Threshold
+      still_threshold:
+        name: Gate 2 Still Threshold
+    # 210-279cm
+    gate_3:
+      move_threshold:
+        name: Gate 3 Move Threshold
+      still_threshold:
+        name: Gate 3 Still Threshold
+    # 280-349cm
+    gate_4:
+      move_threshold:
+        name: Gate 4 Move Threshold
+      still_threshold:
+        name: Gate 4 Still Threshold
+    # 350-419cm
+    gate_5:
+      move_threshold:
+        name: Gate 5 Move Threshold
+      still_threshold:
+        name: Gate 5 Still Threshold
