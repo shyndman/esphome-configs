@@ -1,0 +1,38 @@
+substitutions:
+  friendly_name: Theoretical Thermostat Climate Controller Nouveau
+  name: thermostat_climate_ctrl
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+
+esphome:
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+
+esp32:
+  variant: esp32h2
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+wifi: !remove
+captive_portal: !remove
+sensor: !remove wifi_signal
+text_sensor: !remove wifi_info
+
+network:
+  enable_ipv6: true
+
+openthread:
+  device_type: FTD
+  channel: 11
+  network_name: NEST-PAN-EF45
+  # network_key: 01J806YKWNFCV98HSSVAS168CY
+  pan_id: 0xef45
+  ext_pan_id: 0xb3a1babc702d9a32
+  force_dataset: true
