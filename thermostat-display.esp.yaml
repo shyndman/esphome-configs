@@ -14,9 +14,8 @@ esphome:
     build_unflags: -Werror=all
 
 esp32:
-  board: esp32-s3-devkitc-1
-  variant: ESP32S3
-  flash_size: 16MB
+  variant: esp32h2
+  flash_size: 4MB
   # partitions: /config/include/partitions_16MB.csv
   framework:
     type: esp-idf
