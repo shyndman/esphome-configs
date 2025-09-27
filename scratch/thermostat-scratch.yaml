@@ -5,8 +5,6 @@ substitutions:
 packages:
   device-base: !include ../packages/device-base.yaml
 
-web_server:
-  version: 3
 
 esphome:
   platformio_options:

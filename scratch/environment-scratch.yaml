@@ -17,8 +17,6 @@ esp32:
   framework:
     type: arduino
 
-web_server:
-  version: 3
 
 psram:
   mode: octal

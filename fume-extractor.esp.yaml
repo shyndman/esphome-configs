@@ -13,8 +13,6 @@ esp8266:
 wifi:
   power_save_mode: HIGH
 
-web_server:
-  version: 3
 
 logger:
   level: INFO

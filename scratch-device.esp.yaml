@@ -24,8 +24,6 @@ esp32:
 api:
   reboot_timeout: 0s
 
-web_server:
-  version: 3
 
 logger:
   level: DEBUG
