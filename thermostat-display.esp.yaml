@@ -5,254 +5,162 @@ substitutions:
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
+  t-panel-s3: !include packages/t-panel-s3.esp.yaml
 
 esphome:
-  platformio_options:
-    build_flags: -DBOARD_HAS_PSRAM
-    board_build.f_flash: 80000000L
-    board_build.flash_mode: dio
-    build_unflags: -Werror=all
+  on_boot:
+    then:
+      - light.turn_on:
+          id: display_backlight
+          brightness: 90%
 
-esp32:
-  variant: esp32h2
-  flash_size: 4MB
-  # partitions: /config/include/partitions_16MB.csv
-  framework:
-    type: esp-idf
-    sdkconfig_options:
-      COMPILER_OPTIMIZATION_SIZE: y
+image:
+  - file: mdi:power
+    id: power
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:snowflake
+    id: snowflake
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:fire
+    id: fire
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:fan
+    id: fan
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:weather-night
+    id: clear_night
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-cloudy
+    id: cloudy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-fog
+    id: fog
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-hail
+    id: hail
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-lightning
+    id: lightning
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-lightning-rainy
+    id: lightning_rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-partly-cloudy
+    id: partlycloudy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-pouring
+    id: pouring
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-rainy
+    id: rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-snowy
+    id: snowy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-snowy-rainy
+    id: snowy_rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-sunny
+    id: sunny
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-windy
+    id: windy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-windy-variant
+    id: windy_variant
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
 
-psram:
-  mode: quad
-  speed: 80MHz
+font:
+  - file: gfonts://Figtree@600
+    id: cur_temp_font
+    size: 72
+    bpp: 4
+    glyphs: [
+      0123456789,°
+    ]
+  - file: gfonts://Figtree@500
+    id: top_bar_weather
+    size: 25
+    bpp: 4
+  - file: gfonts://Figtree@300
+    id: top_bar_lighter
+    size: 22
+    bpp: 8
+  - file: gfonts://Figtree@500
+    id: top_bar_emph
+    size: 22
+    bpp: 4
 
-# i2c:
-#   sda: 17
-#   scl: 18
+display:
+  - id: !extend rgb_display
+    update_interval: 1s
+    auto_clear_enabled: True
+    lambda: |-
+      auto warming_color = Color(0xe1, 0x75, 0x2e);
+      auto cooling_color = Color(0x27, 0x76, 0xcc);
+      auto top_bar_color = Color(0xc0, 0xc0, 0xc0);
+      auto icon_bar_color = Color(0xda, 0xda, 0xda);
+      auto black = Color(0x00, 0x00, 0x00);
+      auto blurred_temp_color = Color(0x30, 0x30, 0x30);
 
-# xl9535:
-#   - id: io_hub
-#     address: 0x20
+      int baseline = id(cur_temp_font).get_baseline();
 
-# touchscreen:
-#   - platform: cst226
-#     id: panel_touchscreen
-#     interrupt_pin: 21
-#     reset_pin: 4
+      int set_top = 4;
+      it.image(8, set_top + 1, id(sunny), ImageAlign::TOP_LEFT, top_bar_color, black);
+      it.print(8 + id(sunny).get_width() + 4, set_top, id(top_bar_weather), top_bar_color, TextAlign::LEFT, "16°");
 
-# spi:
-#   clk_pin:
-#       xl9535: io_hub
-#       number: 15
-#   mosi_pin:
-#       xl9535: io_hub
-      # number: 16
-  # Not configured
-  # miso_pin:
+      int roomTempX = it.get_width() - 2;
+      int roomTempLeft, roomTempTop, _w, _h;
+      it.get_text_bounds(roomTempX, set_top + 2, " 19°", id(top_bar_emph), TextAlign::RIGHT, &roomTempLeft, &roomTempTop, &_w, &_h);
+      it.print(roomTempX, set_top + 2, id(top_bar_emph), top_bar_color, TextAlign::RIGHT, "19°");
+      it.print(roomTempLeft, set_top + 2, id(top_bar_lighter), top_bar_color, TextAlign::RIGHT, "Living Room");
 
-# display:
-#   - platform: st7701s
-#     auto_clear_enabled: true
-#     update_interval: 5s
-#     show_test_card: true
-#     dimensions:
-#       width: 480
-#       height: 480
-#     cs_pin:
-#       xl9535: io_hub
-#       number: 17
-#     reset_pin:
-#       xl9535: io_hub
-#       number: 5
-#     de_pin: 38
-#     hsync_pin: 39
-#     vsync_pin: 40
-#     pclk_pin: 41
-#     color_order: bgr
-#     hsync_pulse_width: 2
-#     hsync_front_porch: 20
-#     hsync_back_porch: 0
-#     vsync_pulse_width: 8
-#     vsync_front_porch: 30
-#     vsync_back_porch: 1
-#     pclk_frequency: 6000000Hz
-#     data_pins:
-#       red:
-#         - 12
-#         - 13
-#         - 42
-#         - 46
-#         - 45
-#       green:
-#         - 6
-#         - 7
-#         - 8
-#         - 9
-#         - 10
-#         - 11
-#       blue:
-#         - 1
-#         - 2
-#         - 3
-#         - 4
-#         - 5
-#     init_sequence:
-#       - 1 # select canned init sequence number 1
-#       - [ 0xE0, 0x1F ]  # Set sunlight readable enhancement
-    # lambda: |-
-    #   auto black = Color(0, 0, 0);
-    #   auto red = Color(255, 0, 0);
-    #   auto green = Color(0, 255, 0);
-    #   auto blue = Color(0, 0, 255);
-    #   auto white = Color(255, 255, 255);
-    #   it.filled_circle(20, 32, 15, black);
-    #   it.filled_circle(40, 32, 15, red);
-    #   it.filled_circle(60, 32, 15, green);
-    #   it.filled_circle(80, 32, 15, blue);
-    #   it.filled_circle(100, 32, 15, white);
+      int cur_inset = 50;
+      int cur_top = 176;
+      it.print(cur_inset, cur_top, id(cur_temp_font), cooling_color, TextAlign::LEFT, "23°");
+      it.print(it.get_width() - cur_inset, cur_top, id(cur_temp_font), blurred_temp_color, TextAlign::RIGHT, "19°");
+      it.filled_rectangle(0, cur_top + baseline, it.get_width(), it.get_height() - 140, cooling_color);
 
 
+      int icon_bar_top = it.get_height() - 32 - 30;
+      int icon_bar_width = 210;
 
-
-
-
-
-
-
-# output:
-#   - platform: ledc
-#     pin: 14
-#     id: backlight_pwm
-
-# # Example usage in a light
-# light:
-#   - platform: monochromatic
-#     output: backlight_pwm
-#     name: "Backlight"
-#     restore_mode: ALWAYS_ON
-
-# BEGIN_WRITE 0x0,
-# WRITE_COMMAND_8 0x1,
-# WRITE_COMMAND_16 0x2,
-# WRITE_COMMAND_BYTES 0x3,
-# WRITE_DATA_8 0x4,
-# WRITE_DATA_16 0x5,
-# WRITE_BYTES 0x6,
-# WRITE_C8_D8 0x7,
-# WRITE_C8_D16 0x8,
-# WRITE_C8_BYTES 0x9,
-# WRITE_C16_D16 0xa,
-# END_WRITE 0xb,
-# DELAY 0xc,
-
-
-#     BEGIN_WRITE,
-#     WRITE_COMMAND_8, 0xFF,
-#     WRITE_BYTES, 5, 0x77, 0x01, 0x00, 0x00, 0x10,
-
-#     WRITE_C8_D16, 0xC0, 0x3B, 0x00,
-#     WRITE_C8_D16, 0xC1, 0x0D, 0x02,
-#     WRITE_C8_D16, 0xC2, 0x31, 0x05,
-#     WRITE_C8_D8, 0xCD, 0x00, // changed by manufacture
-
-#     WRITE_COMMAND_8, 0xB0, // Positive Voltage Gamma Control
-#     WRITE_BYTES, 16,
-#     0x00, 0x11, 0x18, 0x0E,
-#     0x11, 0x06, 0x07, 0x08,
-#     0x07, 0x22, 0x04, 0x12,
-#     0x0F, 0xAA, 0x31, 0x18,
-
-#     WRITE_COMMAND_8, 0xB1, // Negative Voltage Gamma Control
-#     WRITE_BYTES, 16,
-#     0x00, 0x11, 0x19, 0x0E,
-#     0x12, 0x07, 0x08, 0x08,
-#     0x08, 0x22, 0x04, 0x11,
-#     0x11, 0xA9, 0x32, 0x18,
-
-#     // PAGE1
-#     WRITE_COMMAND_8, 0xFF,
-#     WRITE_BYTES, 5, 0x77, 0x01, 0x00, 0x00, 0x11,
-
-#     WRITE_C8_D8, 0xB0, 0x60, // Vop=4.7375v
-#     WRITE_C8_D8, 0xB1, 0x32, // VCOM=32
-#     WRITE_C8_D8, 0xB2, 0x07, // VGH=15v
-#     WRITE_C8_D8, 0xB3, 0x80,
-#     WRITE_C8_D8, 0xB5, 0x49, // VGL=-10.17v
-#     WRITE_C8_D8, 0xB7, 0x85,
-#     WRITE_C8_D8, 0xB8, 0x21, // AVDD=6.6 & AVCL=-4.6
-#     WRITE_C8_D8, 0xC1, 0x78,
-#     WRITE_C8_D8, 0xC2, 0x78,
-
-#     WRITE_COMMAND_8, 0xE0,
-#     WRITE_BYTES, 3, 0x00, 0x1B, 0x02,
-
-#     WRITE_COMMAND_8, 0xE1,
-#     WRITE_BYTES, 11,
-#     0x08, 0xA0, 0x00, 0x00,
-#     0x07, 0xA0, 0x00, 0x00,
-#     0x00, 0x44, 0x44,
-
-#     WRITE_COMMAND_8, 0xE2,
-#     WRITE_BYTES, 12,
-#     0x11, 0x11, 0x44, 0x44,
-#     0xED, 0xA0, 0x00, 0x00,
-#     0xEC, 0xA0, 0x00, 0x00,
-
-#     WRITE_COMMAND_8, 0xE3,
-#     WRITE_BYTES, 4, 0x00, 0x00, 0x11, 0x11,
-
-#     WRITE_C8_D16, 0xE4, 0x44, 0x44,
-
-#     WRITE_COMMAND_8, 0xE5,
-#     WRITE_BYTES, 16,
-#     0x0A, 0xE9, 0xD8, 0xA0,
-#     0x0C, 0xEB, 0xD8, 0xA0,
-#     0x0E, 0xED, 0xD8, 0xA0,
-#     0x10, 0xEF, 0xD8, 0xA0,
-
-#     WRITE_COMMAND_8, 0xE6,
-#     WRITE_BYTES, 4, 0x00, 0x00, 0x11, 0x11,
-
-#     WRITE_C8_D16, 0xE7, 0x44, 0x44,
-
-#     WRITE_COMMAND_8, 0xE8,
-#     WRITE_BYTES, 16,
-#     0x09, 0xE8, 0xD8, 0xA0,
-#     0x0B, 0xEA, 0xD8, 0xA0,
-#     0x0D, 0xEC, 0xD8, 0xA0,
-#     0x0F, 0xEE, 0xD8, 0xA0,
-
-#     WRITE_COMMAND_8, 0xEB,
-#     WRITE_BYTES, 7,
-#     0x02, 0x00, 0xE4, 0xE4,
-#     0x88, 0x00, 0x40,
-
-#     WRITE_C8_D16, 0xEC, 0x3C, 0x00,
-
-#     WRITE_COMMAND_8, 0xED,
-#     WRITE_BYTES, 16,
-#     0xAB, 0x89, 0x76, 0x54,
-#     0x02, 0xFF, 0xFF, 0xFF,
-#     0xFF, 0xFF, 0xFF, 0x20,
-#     0x45, 0x67, 0x98, 0xBA,
-
-#     //-----------VAP & VAN---------------
-#     WRITE_COMMAND_8, 0xFF,
-#     WRITE_BYTES, 5, 0x77, 0x01, 0x00, 0x00, 0x13,
-
-#     WRITE_C8_D8, 0xE5, 0xE4,
-
-#     WRITE_COMMAND_8, 0xFF,
-#     WRITE_BYTES, 5, 0x77, 0x01, 0x00, 0x00, 0x00,
-
-#     //WRITE_COMMAND_8, 0x21,   // 0x20 normal, 0x21 IPS // commented by manufacture
-#     WRITE_C8_D8, 0x3A, 0x60, // 0x70 RGB888, 0x60 RGB666, 0x50 RGB565
-
-#     WRITE_COMMAND_8, 0x11, // Sleep Out
-#     END_WRITE,
-
-#     DELAY, 120,
-
-#     BEGIN_WRITE,
-#     WRITE_COMMAND_8, 0x29, // Display On
-#     END_WRITE
+      it.image((it.get_width() - icon_bar_width) / 2, icon_bar_top, id(snowflake), ImageAlign::TOP_LEFT, icon_bar_color, cooling_color);
+      it.image(it.get_width() / 2, icon_bar_top, id(power), ImageAlign::TOP_CENTER, icon_bar_color, cooling_color);
+      it.image((it.get_width() + icon_bar_width) / 2, icon_bar_top, id(fan), ImageAlign::TOP_RIGHT, icon_bar_color, cooling_color);
