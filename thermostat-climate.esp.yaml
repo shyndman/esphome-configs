@@ -4,7 +4,7 @@ substitutions:
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
-  supermini: !include packages/esp32c3-supermini.esp.yaml
+  supermini: !include packages/esp32s3-sense.esp.yaml
   ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
 
 deep_sleep:
@@ -119,7 +119,7 @@ climate:
 
 sensor:
   - platform: dht
-    pin: 9
+    pin: 5
     update_interval: 30s
     humidity:
       name: Humidity
@@ -235,10 +235,10 @@ binary_sensor:
 output:
   - platform: gpio
     id: pin_ac
-    pin: 5
+    pin: 1
   - platform: gpio
     id: pin_heat
-    pin: 6
+    pin: 2
   - platform: gpio
-    pin: 7
+    pin: 3
     id: pin_fan
