@@ -4,7 +4,6 @@ substitutions:
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
-  ble-beacon-tracker: !include packages/ble-beacon-tracker.esp.yaml
   t-panel-s3: !include packages/t-panel-s3.esp.yaml
 
 esphome:
