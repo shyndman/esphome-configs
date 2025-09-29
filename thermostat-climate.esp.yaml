@@ -67,16 +67,10 @@ climate:
       then:
         - lambda: |-
             id(requested_heat).turn_on();
-            // if (id(climate_control).fan_mode == climate::CLIMATE_FAN_OFF) {
-            //   id(requested_fan).turn_on();
-            // }
     cool_action:
       then:
         - lambda: |-
             id(requested_ac).turn_on();
-            // if (id(climate_control).fan_mode != climate::CLIMATE_FAN_OFF) {
-            //   id(requested_fan).turn_on();
-            // }
     fan_only_action:
       then:
         - switch.turn_on: requested_fan
