@@ -42,7 +42,7 @@ esp32_camera:
   href_pin: 47
   pixel_clock_pin: 13
   # Camera config
-  resolution: 1280x720
+  resolution: 1280x1024
   jpeg_quality: 20
   idle_framerate: 0.2fps
   max_framerate: 30.0fps
