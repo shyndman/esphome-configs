@@ -112,27 +112,6 @@ climate:
         fan_mode: AUTO
 
 sensor:
-  - platform: dht
-    pin: 5
-    update_interval: 30s
-    humidity:
-      name: Humidity
-      id: rel_humidity
-      accuracy_decimals: 1
-
-    temperature:
-      name: Temperature
-      id: temperature
-      unit_of_measurement: °C
-      accuracy_decimals: 1
-
-  - platform: absolute_humidity
-    name: Absolute Humidity
-    id: abs_humidity
-    temperature: temperature
-    humidity: rel_humidity
-    accuracy_decimals: 1
-
   # Room
   - platform: homeassistant
     name: Target Room Temperature
