@@ -6,6 +6,9 @@ packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   t-panel-s3: !include packages/t-panel-s3.esp.yaml
 
+logger:
+  level: INFO
+
 esphome:
   on_boot:
     then:
