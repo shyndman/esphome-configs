@@ -129,40 +129,148 @@ font:
     size: 22
     bpp: 4
 
-display:
-  - id: !extend rgb_display
-    update_interval: 1s
-    auto_clear_enabled: True
-    lambda: |-
-      auto warming_color = Color(0xe1, 0x75, 0x2e);
-      auto cooling_color = Color(0x27, 0x76, 0xcc);
-      auto top_bar_color = Color(0xc0, 0xc0, 0xc0);
-      auto icon_bar_color = Color(0xda, 0xda, 0xda);
-      auto black = Color(0x00, 0x00, 0x00);
-      auto blurred_temp_color = Color(0x30, 0x30, 0x30);
 
-      int baseline = id(cur_temp_font).get_baseline();
+lvgl:
+  displays:
+    - rgb_display
+  buffer_size: 100%
 
-      int set_top = 4;
-      it.image(8, set_top + 1, id(sunny), ImageAlign::TOP_LEFT, top_bar_color, black);
-      it.print(8 + id(sunny).get_width() + 4, set_top, id(top_bar_weather), top_bar_color, TextAlign::LEFT, "16°");
+  style_definitions:
+    - id: warming_color
+      bg_color: 0xe1752e
+    - id: cooling_color
+      bg_color: 0x2776cc
+    - id: top_bar_color
+      text_color: 0xc0c0c0
+    - id: icon_bar_color
+      text_color: 0xdadada
+    - id: blurred_temp_color
+      text_color: 0x303030
 
-      int roomTempX = it.get_width() - 2;
-      int roomTempLeft, roomTempTop, _w, _h;
-      it.get_text_bounds(roomTempX, set_top + 2, " 19°", id(top_bar_emph), TextAlign::RIGHT, &roomTempLeft, &roomTempTop, &_w, &_h);
-      it.print(roomTempX, set_top + 2, id(top_bar_emph), top_bar_color, TextAlign::RIGHT, "19°");
-      it.print(roomTempLeft, set_top + 2, id(top_bar_lighter), top_bar_color, TextAlign::RIGHT, "Living Room");
+  pages:
+    - id: main_page
+      bg_color: 0x000000
+      widgets:
+        # TOP BAR - Flexbox container
+        - obj:
+            id: top_bar
+            x: 8
+            y: 4
+            width: 464
+            height: 40
+            bg_opa: 0
+            border_width: 0
+            # pad_left: 8
+            # pad_right: 8
+            pad_top: 0
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_between
+              flex_align_cross: center
+            widgets:
+              # Weather group (left side)
+              - obj:
+                  id: weather_group
+                  bg_opa: 0
+                  border_width: 0
+                  flex_grow: 1
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_cross: center
+                    # pad_column: 4
+                  widgets:
+                    - image:
+                        id: weather_icon
+                        src: sunny
+                        image_recolor: 0xc0c0c0
+                        image_recolor_opa: 100%
+                    - label:
+                        id: weather_temp
+                        text: "16°"
+                        text_font: top_bar_weather
+                        text_color: 0xc0c0c0
 
-      int cur_inset = 50;
-      int cur_top = 176;
-      it.print(cur_inset, cur_top, id(cur_temp_font), cooling_color, TextAlign::LEFT, "23°");
-      it.print(it.get_width() - cur_inset, cur_top, id(cur_temp_font), blurred_temp_color, TextAlign::RIGHT, "19°");
-      it.filled_rectangle(0, cur_top + baseline, it.get_width(), it.get_height() - 140, cooling_color);
+              # Room group (right side)
+              - obj:
+                  id: room_group
+                  bg_opa: 0
+                  border_width: 0
+                  flex_grow: 1
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: end
+                    flex_align_cross: center
+                  widgets:
+                    - label:
+                        id: room_name
+                        text: "Living Room"
+                        text_font: top_bar_lighter
+                        text_color: 0xc0c0c0
+                    - label:
+                        id: room_temp
+                        text: "19°"
+                        text_font: top_bar_emph
+                        text_color: 0xc0c0c0
 
+        # CENTER - Current temperature (large, left) - align baseline with stripe
+        - label:
+            id: current_temp
+            text: "23°"
+            x: 50
+            y: 170  # Original 176 - 6 pixel adjustment for baseline alignment
+            text_font: cur_temp_font
+            text_color: 0x2776cc
 
-      int icon_bar_top = it.get_height() - 32 - 30;
-      int icon_bar_width = 210;
+        # CENTER - Target temperature (large, right, dimmed)
+        - label:
+            id: target_temp
+            text: "19°"
+            x: 430
+            y: 170  # Same baseline alignment
+            text_font: cur_temp_font
+            text_color: 0x303030
+            text_align: right
 
-      it.image((it.get_width() - icon_bar_width) / 2, icon_bar_top, id(snowflake), ImageAlign::TOP_LEFT, icon_bar_color, cooling_color);
-      it.image(it.get_width() / 2, icon_bar_top, id(power), ImageAlign::TOP_CENTER, icon_bar_color, cooling_color);
-      it.image((it.get_width() + icon_bar_width) / 2, icon_bar_top, id(fan), ImageAlign::TOP_RIGHT, icon_bar_color, cooling_color);
+        # ACTION ACCENT STRIPE (colored rectangle)
+        - obj:
+            id: action_stripe
+            x: 0
+            y: 238
+            width: 480
+            height: 242
+            bg_color: 0x2776cc
+            border_width: 0
+
+        # ACTION BAR - Flexbox container on the stripe (move up to avoid clipping)
+        - obj:
+            id: action_bar
+            x: 0
+            y: 390  # Move up from 418 to avoid clipping (480 - 36 - 54 margin)
+            width: 480
+            height: 36
+            bg_opa: 0
+            border_width: 0
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_evenly
+              flex_align_cross: center
+            widgets:
+              - image:
+                  id: mode_icon
+                  src: snowflake
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - image:
+                  id: power_icon
+                  src: power
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - image:
+                  id: fan_icon
+                  src: fan
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
