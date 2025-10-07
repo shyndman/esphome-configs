@@ -41,7 +41,7 @@ sensor:
         - script.execute: update_loading_state
   - platform: homeassistant
     id: target_low
-    entity_id: climate.thermostat_climate_ctrl_climate_control
+    entity_id: climate.theoretical_thermostat_ctrl_climate_control
     attribute: target_temp_low
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -60,6 +60,7 @@ sensor:
               - lambda: |-
                   float sanitized = thermostat::slider::clamp_heating(x, id(cooling_setpoint_temp));
                   id(heating_setpoint_temp) = sanitized;
+                  ESP_LOGD("setpoint", "Heating sanitized=%.2f (raw=%.2f)", sanitized, x);
                   if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
                     auto state = thermostat::slider::compute_state_from_temperature(sanitized);
                     id(track_y_position) = state.track_y;
@@ -85,7 +86,7 @@ sensor:
                     - 'x'
   - platform: homeassistant
     id: target_high
-    entity_id: climate.thermostat_climate_ctrl_climate_control
+    entity_id: climate.theoretical_thermostat_ctrl_climate_control
     attribute: target_temp_high
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -104,6 +105,7 @@ sensor:
               - lambda: |-
                   float sanitized = thermostat::slider::clamp_cooling(x, id(heating_setpoint_temp));
                   id(cooling_setpoint_temp) = sanitized;
+                  ESP_LOGD("setpoint", "Cooling sanitized=%.2f (raw=%.2f)", sanitized, x);
                   if (id(active_setpoint_target) == ${thermostat_ui_target_cooling}) {
                     auto state = thermostat::slider::compute_state_from_temperature(sanitized);
                     id(track_y_position) = state.track_y;
@@ -177,7 +179,7 @@ text_sensor:
         - script.execute: update_loading_state
   - platform: homeassistant
     id: fan_mode_sensor
-    entity_id: climate.thermostat_climate_ctrl_climate_control
+    entity_id: climate.theoretical_thermostat_ctrl_climate_control
     attribute: fan_mode
     on_value:
       then:
@@ -190,3 +192,14 @@ text_sensor:
             id: data_fan_mode_ready
             value: 'true'
         - script.execute: update_loading_state
+  - platform: homeassistant
+    id: fan_active
+    entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_fan
+    on_value:
+      then:
+        - lambda: |-
+            const bool running = x == "ON" || x == "on" || x == "1";
+            ESP_LOGD("fan", "fan_active=%s", running ? "true" : "false");
+            id(fan_is_running) = running;
+            id(data_fan_mode_ready) = true;
+        - script.execute: update_fan_animation

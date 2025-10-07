@@ -8,7 +8,7 @@ substitutions:
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   t-panel-s3: !include packages/t-panel-s3.esp.yaml
-  thermostat-display-ui: !include packages/thermostat/thermostat-display-ui.esp.yaml
+  thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
 
 logger:
   level: DEBUG

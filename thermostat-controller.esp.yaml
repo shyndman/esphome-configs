@@ -7,7 +7,7 @@ substitutions:
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   sense: !include packages/esp32s3-sense.esp.yaml
-  thermostat-shared: !include packages/thermostat-shared.esp.yaml
+  thermostat-shared: !include packages/thermostat/defaults.esp.yaml
   # mm-wave: !include packages/mm-wave-presence-compact.esp.yaml
 
 bme68x_bsec2_i2c:

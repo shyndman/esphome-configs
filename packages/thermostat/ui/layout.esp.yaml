@@ -15,6 +15,10 @@ lvgl:
             lambda: 'return id(has_backlight_light);'
           then:
             - light.turn_off: display_backlight
+      - globals.set:
+          id: display_is_paused
+          value: 'true'
+      - script.execute: stop_fan_animation
       - lvgl.pause:
 
   style_definitions:
@@ -31,6 +35,31 @@ lvgl:
       text_color: 0xdadada
     - id: blurred_temp_color
       text_color: 0x303030
+    - id: action_icon_style
+      pad_all: 16
+    - id: setpoint_primary_label
+      text_font: setpoint_primary_font
+      height: 85
+    - id: setpoint_secondary_label
+      text_font: setpoint_secondary_font
+      translate_x: -26
+      # translate_y: -1
+      pad_bottom: 0
+    - id: setpoint_left_secondary_label
+      translate_x: -26
+    - id: setpoint_right_primary_label
+      translate_x: 26
+
+
+  theme:
+    obj:
+      pad_all: 0
+      pad_row: 0
+      pad_column: 0
+    label:
+      pad_all: 0
+    image:
+      pad_all: 0
 
   pages:
     - id: loading_page
@@ -44,7 +73,7 @@ lvgl:
             height: 300
             x: 24
             bg_opa: 0
-            border_width: 0
+            outline_width: 0
             scrollable: false
             scrollbar_mode: 'off'
             layout:
@@ -52,7 +81,8 @@ lvgl:
               flex_flow: column
               flex_align_main: center
               flex_align_cross: center
-              pad_row: 20
+              pad_row: 0
+              pad_column: 0
             widgets:
               - image:
                   id: loading_connection_icon
@@ -69,7 +99,6 @@ lvgl:
                   text: "Waiting for data..."
                   text_font: top_bar_room
                   text_color: 0xdadada
-                  pad_top: 16
                   long_mode: SCROLL_CIRCULAR
     - id: main_page
       bg_color: 0x000000
@@ -83,26 +112,31 @@ lvgl:
             width: 100%
             height: 40
             bg_opa: 0
-            border_width: 0
+            outline_width: 0
+            pad_all: 8
             scrollable: false
             scrollbar_mode: 'off'
-            pad_all: 0
             layout:
               type: FLEX
               flex_flow: ROW
               flex_align_main: SPACE_BETWEEN
               flex_align_cross: CENTER
+              pad_row: 0
+              pad_column: 0
             widgets:
               - obj:
                   id: weather_group
                   bg_opa: 0
-                  border_width: 0
+                  outline_width: 0
                   flex_grow: 1
+                  pad_right: 12
                   scrollbar_mode: 'off'
                   layout:
                     type: flex
                     flex_flow: row
                     flex_align_cross: center
+                    pad_row: 0
+                    pad_column: 0
                   widgets:
                     - image:
                         id: weather_icon
@@ -116,18 +150,22 @@ lvgl:
                         text_font: top_bar_weather
                         text_color: 0xc0c0c0
                         opa: 0
+                        pad_left: 8
               - obj:
                   id: room_group
                   bg_opa: 0
-                  border_width: 0
+                  outline_width: 0
                   flex_grow: 1
                   y: 1
+                  pad_left: 12
                   scrollbar_mode: 'off'
                   layout:
                     type: flex
                     flex_flow: row
                     flex_align_main: end
                     flex_align_cross: center
+                    pad_row: 0
+                    pad_column: 0
                   widgets:
                     - label:
                         id: room_name
@@ -135,52 +173,163 @@ lvgl:
                         text_font: top_bar_room
                         text_color: 0xc0c0c0
                         opa: 0
+                        pad_right: 8
                     - label:
                         id: room_temp
                         text: ""
                         text_font: top_bar_temp
                         text_color: 0xc0c0c0
                         opa: 0
+                        pad_left: 8
         - obj:
             id: setpoint_group
             bg_opa: 0
-            border_width: 0
+            outline_color: 0xffffff
+            outline_width: 0
+            border_opa: 100%
             y: !lambda return id(slider_label_y);
             width: 100%
             height: 70
-            pad_all: 0
-            pad_left: 48
-            pad_right: 48
+            pad_left: 38
+            pad_right: 38
             scrollable: false
             scrollbar_mode: 'off'
             layout:
               type: flex
               flex_flow: row
               flex_align_main: space_between
+              pad_row: 0
+              pad_column: 0
             widgets:
-              - label:
-                  id: cooling_setpoint
-                  text: "24°"
-                  text_font: setpoint_font
-                  text_color: 0x292929
-                  clickable: true
-                  on_press:
-                    then:
-                      - script.execute:
-                          id: select_setpoint_target
-                          target: ${thermostat_ui_target_cooling}
-              - label:
-                  id: heating_setpoint
-                  text: "21°"
-                  text_font: setpoint_font
-                  text_color: 0xe1752e
+              - obj:
+                  id: cooling_setpoint_container
+                  bg_opa: 0
+                  outline_color: 0xff0000
+                  outline_width: 1
+                  border_opa: 100%
+                  scrollbar_mode: 'off'
+                  flex_grow: 1
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_cross: end
+                    pad_row: 0
+                    pad_column: 0
+                  widgets:
+                    - label:
+                        id: cooling_setpoint
+                        text: "24°"
+                        text_color: 0x292929
+                        styles: setpoint_primary_label
+                        outline_color: 0x00ff00
+                        outline_width: 1
+                        border_opa: 100%
+                        clickable: true
+                        on_press:
+                          then:
+                            - globals.set:
+                                id: suppress_setpoint_animation
+                                value: 'true'
+                            - script.execute:
+                                id: select_setpoint_target
+                                target: ${thermostat_ui_target_cooling}
+                            - script.execute: begin_drag_from_touch
+                        on_release:
+                          then:
+                            - globals.set:
+                                id: is_dragging
+                                value: 'false'
+                            - script.execute: commit_setpoints
+                    - label:
+                        id: cooling_setpoint_fraction
+                        text: ".0"
+                        text_color: 0x292929
+                        styles: setpoint_secondary_label setpoint_left_secondary_label
+                        outline_color: 0x0000ff
+                        outline_width: 1
+                        border_opa: 100%
+                        clickable: true
+                        on_press:
+                          then:
+                            - globals.set:
+                                id: suppress_setpoint_animation
+                                value: 'true'
+                            - script.execute:
+                                id: select_setpoint_target
+                                target: ${thermostat_ui_target_cooling}
+                            - script.execute: begin_drag_from_touch
+                        on_release:
+                          then:
+                            - globals.set:
+                                id: is_dragging
+                                value: 'false'
+                            - script.execute: commit_setpoints
+              - obj:
+                  id: heating_setpoint_container
+                  bg_opa: 0
+                  outline_color: 0xff00ff
+                  outline_width: 1
+                  border_opa: 100%
                   text_align: right
-                  clickable: true
-                  on_press:
-                    then:
-                      - script.execute:
-                          id: select_setpoint_target
-                          target: ${thermostat_ui_target_heating}
+                  scrollbar_mode: 'off'
+                  flex_grow: 1
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: end
+                    flex_align_cross: end
+                    pad_row: 0
+                    pad_column: 0
+                  widgets:
+                    - label:
+                        id: heating_setpoint
+                        text: "21°"
+                        text_color: 0xe1752e
+                        text_align: right
+                        styles: setpoint_primary_label setpoint_right_primary_label
+                        outline_color: 0x00ffff
+                        outline_width: 1
+                        border_opa: 100%
+                        clickable: true
+                        on_press:
+                          then:
+                            - globals.set:
+                                id: suppress_setpoint_animation
+                                value: 'true'
+                            - script.execute:
+                                id: select_setpoint_target
+                                target: ${thermostat_ui_target_heating}
+                            - script.execute: begin_drag_from_touch
+                        on_release:
+                          then:
+                            - globals.set:
+                                id: is_dragging
+                                value: 'false'
+                            - script.execute: commit_setpoints
+                    - label:
+                        id: heating_setpoint_fraction
+                        text: ".0"
+                        text_color: 0xe1752e
+                        styles: setpoint_secondary_label
+                        outline_color: 0xffff00
+                        outline_width: 1
+                        border_opa: 100%
+                        clickable: true
+                        on_press:
+                          then:
+                            - globals.set:
+                                id: suppress_setpoint_animation
+                                value: 'true'
+                            - script.execute:
+                                id: select_setpoint_target
+                                target: ${thermostat_ui_target_heating}
+                            - script.execute: begin_drag_from_touch
+                        on_release:
+                          then:
+                            - globals.set:
+                                id: is_dragging
+                                value: 'false'
+                            - script.execute: commit_setpoints
         - obj:
             id: temperature_track
             x: 0
@@ -188,31 +337,31 @@ lvgl:
             width: 480
             height: !lambda return id(slider_track_height);
             bg_color: 0xe1752e
-            border_width: 0
+            outline_width: 1
             radius: 0
             scrollbar_mode: 'off'
             clickable: false
             gesture_bubble: true
-        - obj:
-            id: slider_bound_top
-            x: 0
-            y: !lambda return thermostat::slider::track_min_y();
-            width: 480
-            height: 1
-            bg_color: 0xff0000
-            bg_opa: 80%
-            clickable: false
-            scrollbar_mode: 'off'
-        - obj:
-            id: slider_bound_bottom
-            x: 0
-            y: !lambda return thermostat::slider::track_max_y();
-            width: 480
-            height: 1
-            bg_color: 0x00ff00
-            bg_opa: 80%
-            clickable: false
-            scrollbar_mode: 'off'
+        # - obj:
+        #     id: slider_bound_top
+        #     x: 0
+        #     y: !lambda return thermostat::slider::track_min_y();
+        #     width: 480
+        #     height: 1
+        #     bg_color: 0xff0000
+        #     bg_opa: 80%
+        #     clickable: false
+        #     scrollbar_mode: 'off'
+        # - obj:
+        #     id: slider_bound_bottom
+        #     x: 0
+        #     y: !lambda return thermostat::slider::track_max_y();
+        #     width: 480
+        #     height: 1
+        #     bg_color: 0x00ff00
+        #     bg_opa: 80%
+        #     clickable: false
+        #     scrollbar_mode: 'off'
         - obj:
             id: track_touch_zone
             x: 0
@@ -220,7 +369,7 @@ lvgl:
             width: 480
             height: 440
             bg_opa: 0
-            border_width: 0
+            outline_width: 1
             clickable: true
             scrollbar_mode: 'off'
             on_press:
@@ -228,53 +377,7 @@ lvgl:
                 - logger.log:
                     level: DEBUG
                     format: "Touch zone pressed!"
-                - lambda: |-
-                    auto touch = id(${thermostat_touchscreen_id});
-                    auto touch_point = touch->get_touch();
-                    if (touch_point.has_value()) {
-                      int raw_y = touch_point.value().y;
-                      if (raw_y < -100 || raw_y > 600) {
-                        ESP_LOGW("touch", "Ignoring out-of-range press y=%d", raw_y);
-                        id(is_dragging) = false;
-                        return;
-                      }
-                      int clamped_y = raw_y;
-                      if (clamped_y < thermostat::slider::track_min_y()) clamped_y = thermostat::slider::track_min_y();
-                      if (clamped_y > thermostat::slider::track_max_y()) clamped_y = thermostat::slider::track_max_y();
-                      auto state = thermostat::slider::compute_state_from_y(clamped_y);
-                      float adjusted = state.setpoint;
-                      if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
-                        adjusted = thermostat::slider::clamp_heating(adjusted, id(cooling_setpoint_temp));
-                      } else {
-                        adjusted = thermostat::slider::clamp_cooling(adjusted, id(heating_setpoint_temp));
-                      }
-                      auto clamped_state = thermostat::slider::compute_state_from_temperature(adjusted);
-
-                      id(track_y_position) = clamped_state.track_y;
-                      id(last_touch_y) = clamped_state.track_y;
-                      id(slider_track_height) = clamped_state.track_height;
-                      id(slider_label_y) = clamped_state.label_y;
-                      if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
-                        id(heating_setpoint_temp) = clamped_state.setpoint;
-                      } else {
-                        id(cooling_setpoint_temp) = clamped_state.setpoint;
-                      }
-
-                      id(is_dragging) = true;
-
-                      ESP_LOGD("touch", "Initial touch at y=%d (clamped=%d)", raw_y, clamped_y);
-                    } else {
-                      ESP_LOGW("touch", "No touch point available on press");
-                      id(is_dragging) = false;
-                    }
-                - lvgl.widget.update:
-                    id: temperature_track
-                    y: !lambda return id(track_y_position);
-                    height: !lambda return id(slider_track_height);
-                - lvgl.widget.update:
-                    id: setpoint_group
-                    y: !lambda return id(slider_label_y);
-                - script.execute: refresh_setpoint_labels
+                - script.execute: begin_drag_from_touch
             on_release:
               then:
                 - logger.log:
@@ -291,7 +394,7 @@ lvgl:
             width: 100%
             height: 70
             bg_opa: 0
-            border_width: 0
+            outline_width: 1
             scrollable: false
             scrollbar_mode: 'off'
             layout:
@@ -299,19 +402,37 @@ lvgl:
               flex_flow: row
               flex_align_main: space_evenly
               flex_align_cross: center
+              pad_row: 0
+              pad_column: 0
             widgets:
               - image:
                   id: mode_icon
                   src: snowflake
+                  clickable: true
                   image_recolor: 0xdadada
                   image_recolor_opa: 100%
+                  styles: action_icon_style
+                  pressed:
+                    bg_color: 0xffffff
+                    bg_opa: 15%
               - image:
                   id: power_icon
                   src: power
+                  clickable: true
                   image_recolor: 0xdadada
                   image_recolor_opa: 100%
-              - image:
-                  id: fan_icon
-                  src: fan
-                  image_recolor: 0xdadada
-                  image_recolor_opa: 100%
+                  styles: action_icon_style
+                  pressed:
+                    bg_color: 0xffffff
+                    bg_opa: 15%
+              - animimg:
+                  id: fan_anim
+                  src: [fan_frame_0, fan_frame_12, fan_frame_24, fan_frame_36, fan_frame_48, fan_frame_60, fan_frame_72, fan_frame_84, fan_frame_96, fan_frame_108, fan_frame_120, fan_frame_132, fan_frame_144, fan_frame_156, fan_frame_168, fan_frame_180, fan_frame_192, fan_frame_204, fan_frame_216, fan_frame_228, fan_frame_240, fan_frame_252, fan_frame_264, fan_frame_276, fan_frame_288, fan_frame_300, fan_frame_312, fan_frame_324, fan_frame_336, fan_frame_348, fan_frame_360]
+                  duration: 1000ms
+                  repeat_count: forever
+                  auto_start: false
+                  clickable: true
+                  styles: action_icon_style
+                  pressed:
+                    bg_color: 0xffffff
+                    bg_opa: 15%

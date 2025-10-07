@@ -92,7 +92,19 @@ globals:
   - id: data_fan_mode_ready
     type: bool
     initial_value: 'false'
+  - id: fan_is_running
+    type: bool
+    initial_value: 'false'
+  - id: fan_animation_active
+    type: bool
+    initial_value: 'false'
+  - id: display_is_paused
+    type: bool
+    initial_value: 'false'
   - id: ui_ready
+    type: bool
+    initial_value: 'false'
+  - id: suppress_setpoint_animation
     type: bool
     initial_value: 'false'
 
@@ -145,17 +157,81 @@ script:
       - lvgl.label.update:
           id: cooling_setpoint
           text: !lambda |-
+            const float value = id(cooling_setpoint_temp);
+            const int tenths = static_cast<int>(std::round(value * 10.0f));
+            const int whole = tenths / 10;
             char buffer[8];
-            int display = static_cast<int>(std::round(id(cooling_setpoint_temp)));
-            snprintf(buffer, sizeof(buffer), "%d°", display);
+            snprintf(buffer, sizeof(buffer), "%d°", whole);
+            return std::string(buffer);
+      - lvgl.label.update:
+          id: cooling_setpoint_fraction
+          text: !lambda |-
+            const float value = id(cooling_setpoint_temp);
+            const int tenths = static_cast<int>(std::round(value * 10.0f));
+            int fractional = tenths % 10;
+            if (fractional < 0) fractional = -fractional;
+            char buffer[8];
+            snprintf(buffer, sizeof(buffer), ".%d", fractional);
             return std::string(buffer);
       - lvgl.label.update:
           id: heating_setpoint
           text: !lambda |-
+            const float value = id(heating_setpoint_temp);
+            const int tenths = static_cast<int>(std::round(value * 10.0f));
+            const int whole = tenths / 10;
             char buffer[8];
-            int display = static_cast<int>(std::round(id(heating_setpoint_temp)));
-            snprintf(buffer, sizeof(buffer), "%d°", display);
+            snprintf(buffer, sizeof(buffer), "%d°", whole);
             return std::string(buffer);
+      - lvgl.label.update:
+          id: heating_setpoint_fraction
+          text: !lambda |-
+            const float value = id(heating_setpoint_temp);
+            const int tenths = static_cast<int>(std::round(value * 10.0f));
+            int fractional = tenths % 10;
+            if (fractional < 0) fractional = -fractional;
+            char buffer[8];
+            snprintf(buffer, sizeof(buffer), ".%d", fractional);
+            return std::string(buffer);
+  - id: update_mode_icon
+    then:
+      - lvgl.image.update:
+          id: mode_icon
+          src: !lambda |-
+            const bool heating_active = id(active_setpoint_target) == ${thermostat_ui_target_heating};
+            return heating_active ? id(fire) : id(snowflake);
+  - id: start_fan_animation
+    then:
+      - lambda: |-
+          if (id(fan_animation_active)) {
+            return;
+          }
+          if (id(fan_anim) == nullptr) {
+            ESP_LOGW("fan", "fan_anim not ready; skipping animation start");
+            return;
+          }
+          id(fan_animation_active) = true;
+      - lvgl.animimg.start: fan_anim
+  - id: stop_fan_animation
+    then:
+      - lambda: |-
+          if (!id(fan_animation_active)) {
+            return;
+          }
+          if (id(fan_anim) == nullptr) {
+            return;
+          }
+      - lvgl.animimg.stop: fan_anim
+      - lambda: |-
+          id(fan_animation_active) = false;
+  - id: update_fan_animation
+    then:
+      - if:
+          condition:
+            lambda: 'return id(fan_is_running) && !id(display_is_paused);'
+          then:
+            - script.execute: start_fan_animation
+          else:
+            - script.execute: stop_fan_animation
   - id: sync_active_setpoint_visuals
     mode: restart
     then:
@@ -163,23 +239,77 @@ script:
           const bool heating_active = id(active_setpoint_target) == ${thermostat_ui_target_heating};
           const float target_temp = heating_active ? id(heating_setpoint_temp) : id(cooling_setpoint_temp);
           auto state = thermostat::slider::compute_state_from_temperature(target_temp);
+
+          lv_obj_t *track = id(temperature_track);
+          lv_obj_t *group = id(setpoint_group);
+
+          const int32_t start_y = lv_obj_get_y(track);
+          const int32_t start_height = lv_obj_get_height(track);
+          const int32_t start_label_y = lv_obj_get_y(group);
+
           id(track_y_position) = state.track_y;
           id(slider_track_height) = state.track_height;
           id(slider_label_y) = state.label_y;
           id(last_touch_y) = state.track_y;
+
+          const bool animate = !id(is_dragging) && !id(suppress_setpoint_animation);
+
+          lv_anim_del(track, nullptr);
+          lv_anim_del(group, nullptr);
+
+          if (animate) {
+            lv_anim_t anim_y;
+            lv_anim_init(&anim_y);
+            lv_anim_set_var(&anim_y, track);
+            lv_anim_set_values(&anim_y, start_y, state.track_y);
+            lv_anim_set_time(&anim_y, 120);
+            lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
+              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_y);
+
+            lv_anim_t anim_height;
+            lv_anim_init(&anim_height);
+            lv_anim_set_var(&anim_height, track);
+            lv_anim_set_values(&anim_height, start_height, state.track_height);
+            lv_anim_set_time(&anim_height, 120);
+            lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
+              lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_height);
+
+            lv_anim_t anim_label;
+            lv_anim_init(&anim_label);
+            lv_anim_set_var(&anim_label, group);
+            lv_anim_set_values(&anim_label, start_label_y, state.label_y);
+            lv_anim_set_time(&anim_label, 120);
+            lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
+              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_label);
+          } else {
+            lv_obj_set_y(track, state.track_y);
+            lv_obj_set_height(track, state.track_height);
+            lv_obj_set_y(group, state.label_y);
+          }
+          id(suppress_setpoint_animation) = false;
       - lvgl.widget.update:
           id: temperature_track
-          y: !lambda return id(track_y_position);
-          height: !lambda return id(slider_track_height);
           bg_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
                        : lv_color_hex(0x2776cc);
       - lvgl.widget.update:
-          id: setpoint_group
-          y: !lambda return id(slider_label_y);
-      - lvgl.widget.update:
           id: cooling_setpoint
+          text_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
+                       ? lv_color_hex(0x2776cc)
+                       : lv_color_hex(0x292929);
+      - lvgl.widget.update:
+          id: cooling_setpoint_fraction
           text_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
                        ? lv_color_hex(0x2776cc)
@@ -190,10 +320,18 @@ script:
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
                        : lv_color_hex(0x292929);
+      - lvgl.widget.update:
+          id: heating_setpoint_fraction
+          text_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_heating}
+                       ? lv_color_hex(0xe1752e)
+                       : lv_color_hex(0x292929);
       - lambda: |-
           lv_obj_move_foreground(id(setpoint_group));
           lv_obj_move_background(id(track_touch_zone));
       - script.execute: refresh_setpoint_labels
+      - script.execute: update_mode_icon
+      - script.execute: update_fan_animation
   - id: select_setpoint_target
     mode: restart
     parameters:
@@ -229,38 +367,46 @@ script:
           lv_anim_del(id(cooling_setpoint), nullptr);
           lv_anim_del(id(heating_setpoint), nullptr);
 
-          lv_anim_t anim_y;
-          lv_anim_init(&anim_y);
-          lv_anim_set_var(&anim_y, track);
-          lv_anim_set_values(&anim_y, start_y, new_state.track_y);
-          lv_anim_set_time(&anim_y, 120);
-          lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
-          lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
-            lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
-          });
-          lv_anim_start(&anim_y);
+          if (!id(suppress_setpoint_animation)) {
+            lv_anim_t anim_y;
+            lv_anim_init(&anim_y);
+            lv_anim_set_var(&anim_y, track);
+            lv_anim_set_values(&anim_y, start_y, new_state.track_y);
+            lv_anim_set_time(&anim_y, 120);
+            lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
+              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_y);
 
-          lv_anim_t anim_height;
-          lv_anim_init(&anim_height);
-          lv_anim_set_var(&anim_height, track);
-          lv_anim_set_values(&anim_height, start_height, new_state.track_height);
-          lv_anim_set_time(&anim_height, 120);
-          lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
-          lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
-            lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
-          });
-          lv_anim_start(&anim_height);
+            lv_anim_t anim_height;
+            lv_anim_init(&anim_height);
+            lv_anim_set_var(&anim_height, track);
+            lv_anim_set_values(&anim_height, start_height, new_state.track_height);
+            lv_anim_set_time(&anim_height, 120);
+            lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
+              lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_height);
 
-          lv_anim_t anim_label;
-          lv_anim_init(&anim_label);
-          lv_anim_set_var(&anim_label, group);
-          lv_anim_set_values(&anim_label, start_label_y, new_state.label_y);
-          lv_anim_set_time(&anim_label, 120);
-          lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
-          lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
-            lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
-          });
-          lv_anim_start(&anim_label);
+            lv_anim_t anim_label;
+            lv_anim_init(&anim_label);
+            lv_anim_set_var(&anim_label, group);
+            lv_anim_set_values(&anim_label, start_label_y, new_state.label_y);
+            lv_anim_set_time(&anim_label, 120);
+            lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
+              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+            });
+            lv_anim_start(&anim_label);
+          } else {
+            lv_obj_set_y(track, new_state.track_y);
+            lv_obj_set_height(track, new_state.track_height);
+            lv_obj_set_y(group, new_state.label_y);
+          }
+
+          id(suppress_setpoint_animation) = false;
 
           const uint32_t neutral_color = 0x303030;
           const uint32_t track_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x2776cc;
@@ -272,8 +418,74 @@ script:
           const uint32_t cooling_end_color = (target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x292929;
           const uint32_t heating_end_color = (target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x292929;
           thermostat::ui::animate_two_stage_color(id(cooling_setpoint), cooling_start_color, neutral_color, cooling_end_color, 60, true);
+          thermostat::ui::animate_two_stage_color(id(cooling_setpoint_fraction), cooling_start_color, neutral_color, cooling_end_color, 60, true);
           thermostat::ui::animate_two_stage_color(id(heating_setpoint), heating_start_color, neutral_color, heating_end_color, 60, true);
+          thermostat::ui::animate_two_stage_color(id(heating_setpoint_fraction), heating_start_color, neutral_color, heating_end_color, 60, true);
       - script.execute: refresh_setpoint_labels
+      - script.execute: update_mode_icon
+  - id: begin_drag_from_touch
+    mode: restart
+    then:
+      - lambda: |-
+          id(display_is_paused) = false;
+          auto touch = id(${thermostat_touchscreen_id});
+          if (touch == nullptr) {
+            ESP_LOGW("touch", "Touchscreen ID ${thermostat_touchscreen_id} not found");
+            id(is_dragging) = false;
+            return;
+          }
+
+          auto touch_point = touch->get_touch();
+          if (!touch_point.has_value()) {
+            ESP_LOGW("touch", "No touch point available on press");
+            id(is_dragging) = false;
+            return;
+          }
+
+          int raw_y = touch_point.value().y;
+          if (raw_y < -100 || raw_y > 600) {
+            ESP_LOGW("touch", "Ignoring out-of-range press y=%d", raw_y);
+            id(is_dragging) = false;
+            return;
+          }
+
+          int clamped_y = raw_y;
+          const int min_y = thermostat::slider::track_min_y();
+          const int max_y = thermostat::slider::track_max_y();
+          if (clamped_y < min_y) clamped_y = min_y;
+          if (clamped_y > max_y) clamped_y = max_y;
+
+          auto state = thermostat::slider::compute_state_from_y(clamped_y);
+          float adjusted = state.setpoint;
+          if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+            adjusted = thermostat::slider::clamp_heating(adjusted, id(cooling_setpoint_temp));
+          } else {
+            adjusted = thermostat::slider::clamp_cooling(adjusted, id(heating_setpoint_temp));
+          }
+          auto clamped_state = thermostat::slider::compute_state_from_temperature(adjusted);
+
+          id(track_y_position) = clamped_state.track_y;
+          id(last_touch_y) = clamped_state.track_y;
+          id(slider_track_height) = clamped_state.track_height;
+          id(slider_label_y) = clamped_state.label_y;
+          if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+            id(heating_setpoint_temp) = clamped_state.setpoint;
+          } else {
+            id(cooling_setpoint_temp) = clamped_state.setpoint;
+          }
+
+          id(is_dragging) = true;
+          ESP_LOGD("touch", "Begin drag: raw_y=%d, clamped_y=%d, temp=%.1f", raw_y, clamped_state.track_y, clamped_state.setpoint);
+      - lvgl.widget.update:
+          id: temperature_track
+          y: !lambda return id(track_y_position);
+          height: !lambda return id(slider_track_height);
+      - lvgl.widget.update:
+          id: setpoint_group
+          y: !lambda return id(slider_label_y);
+      - script.execute: refresh_setpoint_labels
+      - script.execute: update_mode_icon
+      - script.execute: update_fan_animation
   - id: run_desktop_loading_timeout
     mode: restart
     then:
@@ -412,6 +624,10 @@ switch:
                 then:
                   - lvgl.resume:
                   - lvgl.widget.redraw:
+            - globals.set:
+                id: display_is_paused
+                value: 'true'
+            - script.execute: stop_fan_animation
             - lvgl.pause:
                 show_snow: true
             - if:
@@ -436,6 +652,10 @@ switch:
                 then:
                   - lvgl.resume:
                   - lvgl.widget.redraw:
+            - globals.set:
+                id: display_is_paused
+                value: 'false'
+            - script.execute: update_fan_animation
             - if:
                 condition:
                   lambda: 'return id(has_backlight_light);'
