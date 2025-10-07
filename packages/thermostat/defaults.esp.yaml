@@ -1,0 +1,8 @@
+# Shared thermostat constants for controller and UI packages.
+substitutions:
+  thermostat_min_temp: '16.0'
+  thermostat_max_temp: '30.0'
+  thermostat_temp_step: '0.2'
+  thermostat_heat_overrun: '0.3'
+  thermostat_cool_overrun: '0.3'
+  thermostat_display_ideal_temp: '21.0'

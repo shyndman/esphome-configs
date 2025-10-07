@@ -2,6 +2,18 @@ substitutions:
   friendly_name: Thermostat Display Desktop
   name: thermostat_display_desktop
 
+  thermostat_display_id: desktop_display
+  thermostat_touchscreen_id: desktop_touchscreen
+  thermostat_ui_desktop_timeout_enabled: 'true'
+  thermostat_ui_desktop_timeout_duration: '4s'
+  thermostat_ui_antiburn_enabled: 'false'
+  thermostat_ui_antiburn_internal: 'true'
+  thermostat_ui_has_backlight_light: 'false'
+  thermostat_ui_time_id: sntp_time
+
+packages:
+  thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
+
 esphome:
   name: ${name}
 
@@ -26,107 +38,12 @@ api:
       - logger.log: "Home Assistant client disconnected!"
 
 logger:
-  level: INFO
+  level: DEBUG
 
 time:
   - platform: host
     id: sntp_time
     timezone: America/Toronto
-
-globals:
-  - id: current_temperature
-    type: float
-    initial_value: '23.0'
-  - id: is_dragging
-    type: bool
-    initial_value: 'false'
-  - id: cooling_setpoint_temp
-    type: float
-    initial_value: '23.0'
-  - id: heating_setpoint_temp
-    type: float
-    initial_value: '19.0'
-  - id: track_y_position
-    type: int
-    initial_value: '238'  # Initial y position of temperature track
-  - id: active_slider
-    type: int
-    initial_value: '0'    # 0=none, 1=cooling(left), 2=heating(right)
-  - id: last_touch_y
-    type: int
-    initial_value: '0'
-
-# Home Assistant sensors for weather data
-sensor:
-  - platform: homeassistant
-    id: outside_temperature
-    entity_id: weather.pirate_toronto
-    attribute: temperature
-    unit_of_measurement: "°C"
-    accuracy_decimals: 0
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: weather_temp
-            text: !lambda |-
-              return std::string(std::to_string((int)x) + "°");
-        - lvgl.widget.update:
-            id: weather_temp
-            opa: 100%
-  - platform: homeassistant
-    id: room_temperature
-    entity_id: sensor.thermostat_target_room_temperature
-    unit_of_measurement: "°C"
-    accuracy_decimals: 0
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: room_temp
-            text: !lambda |-
-              return std::string(std::to_string((int)x) + "°");
-        - lvgl.widget.update:
-            id: room_temp
-            opa: 100%
-
-text_sensor:
-  - platform: homeassistant
-    id: weather_condition
-    entity_id: weather.pirate_toronto
-    on_value:
-      then:
-        - lvgl.image.update:
-            id: weather_icon
-            src: !lambda |-
-              std::string condition = x;
-              if (condition == "sunny" || condition == "clear") return id(sunny);
-              if (condition == "clear-night") return id(clear_night);
-              if (condition == "partlycloudy") return id(partlycloudy);
-              if (condition == "cloudy" || condition == "overcast") return id(cloudy);
-              if (condition == "fog" || condition == "hazy") return id(fog);
-              if (condition == "rainy") return id(rainy);
-              if (condition == "pouring") return id(pouring);
-              if (condition == "snowy") return id(snowy);
-              if (condition == "snowy-rainy") return id(snowy_rainy);
-              if (condition == "lightning" || condition == "thunderstorm") return id(lightning);
-              if (condition == "lightning-rainy") return id(lightning_rainy);
-              if (condition == "windy") return id(windy);
-              if (condition == "windy-variant") return id(windy_variant);
-              if (condition == "hail") return id(hail);
-              return id(sunny);
-        - lvgl.widget.update:
-            id: weather_icon
-            opa: 100%
-  - platform: homeassistant
-    id: room_name_sensor
-    entity_id: sensor.thermostat_target_room_name
-    on_value:
-      then:
-        - lvgl.label.update:
-            id: room_name
-            text: !lambda return x;
-        - lvgl.widget.update:
-            id: room_name
-            opa: 100%
 
 display:
   - platform: sdl
@@ -135,400 +52,36 @@ display:
       width: 480
       height: 480
 
+output:
+  - platform: template
+    id: desktop_backlight_output
+    type: float
+    write_action:
+      - lambda: |-
+          // Desktop build has no physical backlight.
+
+light:
+  - platform: monochromatic
+    id: display_backlight
+    output: desktop_backlight_output
+    internal: true
+
 touchscreen:
   - platform: sdl
     id: desktop_touchscreen
-    update_interval: 32ms  # Match the interval rate for smoother tracking
-
-interval:
-  - interval: 32ms  # ~30fps for smooth enough dragging on limited hardware
-    then:
-      - if:
-          condition:
-            lambda: |-
-              static bool last_dragging = false;
-              bool current_dragging = id(is_dragging);
-              if (current_dragging != last_dragging) {
-                ESP_LOGI("drag", "Dragging state changed: %s", current_dragging ? "STARTED" : "STOPPED");
-                last_dragging = current_dragging;
-              }
-              return current_dragging;
-          then:
-            - lambda: |-
-                // Get current touch position if available
-                auto touch = id(desktop_touchscreen);
-                auto touch_point = touch->get_touch();
-                if (touch_point.has_value()) {
-                  int current_y = touch_point.value().y;
-                  int delta_y = current_y - id(last_touch_y);
-
-                  // Update track position with constraints
-                  int new_track_y = id(track_y_position) + delta_y;
-
-                  // Constrain track between y=130 (top) and y=380 (bottom)
-                  if (new_track_y < 130) new_track_y = 130;
-                  if (new_track_y > 380) new_track_y = 380;
-
-                  if (abs(delta_y) > 2) {  // Only log significant movements
-                    ESP_LOGI("drag", "Dragging: current_y=%d, delta=%d, new_track_y=%d", current_y, delta_y, new_track_y);
-                  }
-
-                  id(track_y_position) = new_track_y;
-                  id(last_touch_y) = current_y;
-
-                  // Map track position (130-380) to temperature (26-16)
-                  // Formula: temp = 26 - ((track_y - 130) / 250) * 10
-                  float temp_range = 10.0; // 26 - 16 = 10 degrees
-                  float y_range = 250.0;   // 380 - 130 = 250 pixels
-                  float normalized_y = (new_track_y - 130.0) / y_range; // 0.0 to 1.0
-                  id(cooling_setpoint_temp) = 26.0 - (normalized_y * temp_range);
-
-                  ESP_LOGI("temp", "Track y=%d, Temperature=%.1f", new_track_y, id(cooling_setpoint_temp));
-                }
-            - lvgl.widget.update:
-                id: temperature_track
-                y: !lambda return id(track_y_position);
-                height: !lambda return 480 - id(track_y_position);
-            - lvgl.widget.update:
-                id: setpoint_group
-                y: !lambda |-
-                  int label_y = id(track_y_position) - 69;
-                  return label_y < 50 ? 50 : label_y;
-            - lvgl.label.update:
-                id: cooling_setpoint
-                text: !lambda |-
-                  char buffer[10];
-                  snprintf(buffer, sizeof(buffer), "%.0f°", id(cooling_setpoint_temp));
-                  return std::string(buffer);
-            - lvgl.widget.update:
-                id: track_touch_zone
-                y: !lambda |-
-                  int zone_y = id(track_y_position) - 100;
-                  return zone_y < 0 ? 0 : zone_y;
-                height: !lambda |-
-                  int zone_y = id(track_y_position) - 100;
-                  int zone_height = 200;
-                  if (zone_y < 0) {
-                    zone_height += zone_y;
-                  }
-                  return zone_height > 0 ? zone_height : 100;
-
-image:
-  - file: mdi:power
-    id: power
-    type: grayscale
-    transparency: alpha_channel
-    resize: 36x36
-  - file: mdi:snowflake
-    id: snowflake
-    type: grayscale
-    transparency: alpha_channel
-    resize: 36x36
-  - file: mdi:fire
-    id: fire
-    type: grayscale
-    transparency: alpha_channel
-    resize: 36x36
-  - file: mdi:fan
-    id: fan
-    type: grayscale
-    transparency: alpha_channel
-    resize: 36x36
-  - file: mdi:weather-night
-    id: clear_night
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-cloudy
-    id: cloudy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-fog
-    id: fog
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-hail
-    id: hail
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-lightning
-    id: lightning
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-lightning-rainy
-    id: lightning_rainy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-partly-cloudy
-    id: partlycloudy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-pouring
-    id: pouring
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-rainy
-    id: rainy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-snowy
-    id: snowy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-snowy-rainy
-    id: snowy_rainy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-sunny
-    id: sunny
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-windy
-    id: windy
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-  - file: mdi:weather-windy-variant
-    id: windy_variant
-    type: grayscale
-    transparency: alpha_channel
-    resize: 28x28
-
-font:
-  - file: gfonts://Figtree@600
-    id: setpoint_font
-    size: 72
-    bpp: 4
-    glyphs: [
-      0123456789,°
-    ]
-  - file: gfonts://Figtree@500
-    id: top_bar_weather
-    size: 25
-    bpp: 4
-  - file: gfonts://Figtree@300
-    id: top_bar_room
-    size: 23
-    bpp: 8
-  - file: gfonts://Figtree@500
-    id: top_bar_temp
-    size: 23
-    bpp: 4
-
-lvgl:
-  displays:
-    - desktop_display
-  touchscreens:
-    - touchscreen_id: desktop_touchscreen
-  buffer_size: 100%
-
-  style_definitions:
-    - id: warming_color
-      bg_color: 0xe1752e
-    - id: cooling_color
-      bg_color: 0x2776cc
-    - id: top_bar_color
-      text_color: 0xc0c0c0
-    - id: icon_bar_color
-      text_color: 0xdadada
-    - id: blurred_temp_color
-      text_color: 0x303030
-
-  pages:
-    - id: main_page
-      bg_color: 0x000000
-      scrollable: false
-      widgets:
-        # TOP BAR - Flexbox container
-        - obj:
-            id: top_bar
-            x: 0
-            y: 0
-            width: 100%
-            height: 40
-            bg_opa: 0
-            border_width: 0
-            scrollable: false
-            pad_all: 0
-            layout:
-              type: FLEX
-              flex_flow: ROW
-              flex_align_main: SPACE_BETWEEN
-              flex_align_cross: CENTER
-            widgets:
-              # Weather group (left side)
-              - obj:
-                  id: weather_group
-                  bg_opa: 0
-                  border_width: 0
-                  flex_grow: 1
-                  layout:
-                    type: flex
-                    flex_flow: row
-                    flex_align_cross: center
-                  widgets:
-                    - image:
-                        id: weather_icon
-                        src: sunny
-                        image_recolor: 0xc0c0c0
-                        image_recolor_opa: 100%
-                        opa: 0  # Transparent until we get data
-                    - label:
-                        id: weather_temp
-                        text: ""
-                        text_font: top_bar_weather
-                        text_color: 0xc0c0c0
-                        opa: 0  # Transparent until we get data
-
-              # Room group (right side)
-              - obj:
-                  id: room_group
-                  bg_opa: 0
-                  border_width: 0
-                  flex_grow: 1
-                  y: 1 # Slight nudge down to align with weather icon
-                  layout:
-                    type: flex
-                    flex_flow: row
-                    flex_align_main: end
-                    flex_align_cross: center
-                  widgets:
-                    - label:
-                        id: room_name
-                        text: ""
-                        text_font: top_bar_room
-                        text_color: 0xc0c0c0
-                        opa: 0  # Transparent until we get data
-                    - label:
-                        id: room_temp
-                        text: ""
-                        text_font: top_bar_temp
-                        text_color: 0xc0c0c0
-                        opa: 0  # Transparent until we get data
-
-        - obj:
-            id: setpoint_group
-            bg_opa: 0
-            border_width: 0
-            y: !lambda |-
-              int label_y = id(track_y_position) - 69;
-              return label_y < 50 ? 50 : label_y;
-            width: 100%
-            height: 70
-            pad_all: 0
-            pad_left: 48
-            pad_right: 48
-            scrollable: false
-            layout:
-              type: flex
-              flex_flow: row
-              flex_align_main: space_between
-            widgets:
-              # CENTER - The temperature at which the air conditioner will engage (large, left) - align baseline with track
-              - label:
-                  id: cooling_setpoint
-                  text: "23°"
-                  text_font: setpoint_font
-                  text_color: 0x2776cc
-
-              # CENTER - The temperature at which the furnace will engage (large, right) - align baseline with track
-              - label:
-                  id: heating_setpoint
-                  text: "19°"
-                  text_font: setpoint_font
-                  text_color: 0x292929
-                  text_align: right
-
-        # TEMPERATURE TRACK - Manual gesture control
-        - obj:
-            id: temperature_track
-            x: 0
-            y: !lambda return id(track_y_position);
-            width: 480
-            height: !lambda return 480 - id(track_y_position);
-            bg_color: 0x2776cc
-            border_width: 0
-            radius: 0
-
-        # TOUCH ZONE - 100px above and below track top edge for drag detection
-        - obj:
-            id: track_touch_zone
-            x: 0
-            y: !lambda |-
-              int zone_y = id(track_y_position) - 100;
-              return zone_y < 0 ? 0 : zone_y;
-            width: 480
-            height: !lambda |-
-              int zone_y = id(track_y_position) - 100;
-              int zone_height = 200;
-              if (zone_y < 0) {
-                zone_height += zone_y;
-              }
-              return zone_height > 0 ? zone_height : 100;
-            bg_opa: 0
-            border_width: 0
-            clickable: true
-            on_press:
-              then:
-                - logger.log: "Touch zone pressed!"
-                - globals.set:
-                    id: is_dragging
-                    value: 'true'
-                - lambda: |-
-                    auto touch = id(desktop_touchscreen);
-                    auto touch_point = touch->get_touch();
-                    if (touch_point.has_value()) {
-                      id(last_touch_y) = touch_point.value().y;
-                      ESP_LOGI("touch", "Initial touch at y=%d", touch_point.value().y);
-                    } else {
-                      ESP_LOGW("touch", "No touch point available on press");
-                    }
-            on_release:
-              then:
-                - logger.log: "Touch zone released!"
-                - globals.set:
-                    id: is_dragging
-                    value: 'false'
-
-        # ACTION BAR - Icons on the track
-        - obj:
-            id: action_bar
-            x: 0
-            y: 400
-            width: 100%
-            height: 50
-            bg_opa: 0
-            border_width: 0
-            scrollable: false
-            layout:
-              type: flex
-              flex_flow: row
-              flex_align_main: space_evenly
-              flex_align_cross: center
-            widgets:
-              - image:
-                  id: mode_icon
-                  src: snowflake
-                  image_recolor: 0xdadada
-                  image_recolor_opa: 100%
-              - image:
-                  id: power_icon
-                  src: power
-                  image_recolor: 0xdadada
-                  image_recolor_opa: 100%
-              - image:
-                  id: fan_icon
-                  src: fan
-                  image_recolor: 0xdadada
-                  image_recolor_opa: 100%
+    update_interval: 64ms  # Slightly slower to smooth drag processing
+    on_release:
+      then:
+        - if:
+            condition: lvgl.is_paused
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "[idle] LVGL resuming"
+              - lvgl.resume:
+              - lvgl.widget.redraw:
+        - if:
+            condition:
+              lambda: 'return id(switch_antiburn).state;'
+            then:
+              - switch.turn_off: switch_antiburn

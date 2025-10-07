@@ -1,0 +1,540 @@
+
+substitutions:
+  thermostat_ui_desktop_timeout_enabled: 'false'
+  thermostat_ui_desktop_timeout_duration: '6s'
+  thermostat_ui_idle_timeout_initial: 45
+  thermostat_ui_antiburn_enabled: 'true'
+  thermostat_ui_antiburn_internal: 'false'
+  thermostat_ui_has_backlight_light: 'true'
+  thermostat_ui_time_id: esptime
+  thermostat_ui_target_cooling: '0'
+  thermostat_ui_target_heating: '1'
+
+esphome:
+  includes:
+    - include/thermostat_slider_state.h
+    - include/thermostat_ui_animation.h
+  platformio_options:
+    build_flags:
+      - "-DTHERMOSTAT_MIN_TEMP=${thermostat_min_temp}f"
+      - "-DTHERMOSTAT_MAX_TEMP=${thermostat_max_temp}f"
+      - "-DTHERMOSTAT_TEMP_STEP=${thermostat_temp_step}f"
+      - "-DTHERMOSTAT_IDEAL_TEMP=${thermostat_display_ideal_temp}f"
+      - "-DTHERMOSTAT_HEAT_OVERRUN=${thermostat_heat_overrun}f"
+      - "-DTHERMOSTAT_COOL_OVERRUN=${thermostat_cool_overrun}f"
+  on_boot:
+    - priority: -100.0
+      then:
+        - script.execute: run_desktop_loading_timeout
+        - script.execute: sync_active_setpoint_visuals
+
+globals:
+  - id: current_temperature
+    type: float
+    initial_value: '21.0'
+  - id: is_dragging
+    type: bool
+    initial_value: 'false'
+  - id: cooling_setpoint_temp
+    type: float
+    initial_value: '24.0'
+  - id: heating_setpoint_temp
+    type: float
+    initial_value: '21.0'
+  - id: track_y_position
+    type: int
+    initial_value: '255'
+  - id: active_setpoint_target
+    type: int
+    initial_value: '${thermostat_ui_target_heating}'
+  - id: last_touch_y
+    type: int
+    initial_value: '255'
+  - id: slider_track_height
+    type: int
+    initial_value: '225'
+  - id: slider_label_y
+    type: int
+    initial_value: '186'
+  - id: load_timeout_enabled
+    type: bool
+    initial_value: '${thermostat_ui_desktop_timeout_enabled}'
+  - id: load_timeout_triggered
+    type: bool
+    initial_value: 'false'
+  - id: antiburn_feature_enabled
+    type: bool
+    initial_value: '${thermostat_ui_antiburn_enabled}'
+  - id: antiburn_last_minute
+    type: int
+    initial_value: '-1'
+  - id: has_backlight_light
+    type: bool
+    initial_value: '${thermostat_ui_has_backlight_light}'
+  - id: data_weather_condition_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_weather_temperature_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_room_name_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_room_temperature_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_target_high_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_target_low_ready
+    type: bool
+    initial_value: 'false'
+  - id: data_fan_mode_ready
+    type: bool
+    initial_value: 'false'
+  - id: ui_ready
+    type: bool
+    initial_value: 'false'
+
+number:
+  - platform: template
+    name: "${friendly_name} Screen Timeout"
+    optimistic: true
+    id: display_timeout
+    unit_of_measurement: "s"
+    initial_value: ${thermostat_ui_idle_timeout_initial}
+    restore_value: true
+    min_value: 10
+    max_value: 180
+    step: 5
+    mode: box
+
+script:
+  - id: commit_setpoints
+    mode: restart
+    then:
+      - delay: 300ms
+      - if:
+          condition:
+            lambda: |-
+              const float new_high = id(cooling_setpoint_temp);
+              const float new_low = id(heating_setpoint_temp);
+              const float ha_high = id(target_high).state;
+              const float ha_low = id(target_low).state;
+              if (std::isnan(ha_high) || fabsf(ha_high - new_high) > 0.049f) {
+                return true;
+              }
+              if (std::isnan(ha_low) || fabsf(ha_low - new_low) > 0.049f) {
+                return true;
+              }
+              return false;
+          then:
+            - logger.log:
+                level: INFO
+                format: "Setting HVAC targets: high=%.1f low=%.1f"
+                args: [ 'id(cooling_setpoint_temp)', 'id(heating_setpoint_temp)' ]
+            - homeassistant.service:
+                service: climate.set_temperature
+                data:
+                  entity_id: climate.thermostat_climate_ctrl_climate_control
+                  target_temp_high: !lambda 'return id(cooling_setpoint_temp);'
+                  target_temp_low: !lambda 'return id(heating_setpoint_temp);'
+  - id: refresh_setpoint_labels
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: cooling_setpoint
+          text: !lambda |-
+            char buffer[8];
+            int display = static_cast<int>(std::round(id(cooling_setpoint_temp)));
+            snprintf(buffer, sizeof(buffer), "%d°", display);
+            return std::string(buffer);
+      - lvgl.label.update:
+          id: heating_setpoint
+          text: !lambda |-
+            char buffer[8];
+            int display = static_cast<int>(std::round(id(heating_setpoint_temp)));
+            snprintf(buffer, sizeof(buffer), "%d°", display);
+            return std::string(buffer);
+  - id: sync_active_setpoint_visuals
+    mode: restart
+    then:
+      - lambda: |-
+          const bool heating_active = id(active_setpoint_target) == ${thermostat_ui_target_heating};
+          const float target_temp = heating_active ? id(heating_setpoint_temp) : id(cooling_setpoint_temp);
+          auto state = thermostat::slider::compute_state_from_temperature(target_temp);
+          id(track_y_position) = state.track_y;
+          id(slider_track_height) = state.track_height;
+          id(slider_label_y) = state.label_y;
+          id(last_touch_y) = state.track_y;
+      - lvgl.widget.update:
+          id: temperature_track
+          y: !lambda return id(track_y_position);
+          height: !lambda return id(slider_track_height);
+          bg_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_heating}
+                       ? lv_color_hex(0xe1752e)
+                       : lv_color_hex(0x2776cc);
+      - lvgl.widget.update:
+          id: setpoint_group
+          y: !lambda return id(slider_label_y);
+      - lvgl.widget.update:
+          id: cooling_setpoint
+          text_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
+                       ? lv_color_hex(0x2776cc)
+                       : lv_color_hex(0x292929);
+      - lvgl.widget.update:
+          id: heating_setpoint
+          text_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_heating}
+                       ? lv_color_hex(0xe1752e)
+                       : lv_color_hex(0x292929);
+      - lambda: |-
+          lv_obj_move_foreground(id(setpoint_group));
+          lv_obj_move_background(id(track_touch_zone));
+      - script.execute: refresh_setpoint_labels
+  - id: select_setpoint_target
+    mode: restart
+    parameters:
+      target: int
+    then:
+      - lambda: |-
+          if (id(is_dragging)) {
+            ESP_LOGD("target", "Ignoring selection while dragging");
+            return;
+          }
+          if (id(active_setpoint_target) == target) {
+            return;
+          }
+
+          const int old_target = id(active_setpoint_target);
+          const bool new_heating = target == ${thermostat_ui_target_heating};
+          const float target_temp = new_heating ? id(heating_setpoint_temp) : id(cooling_setpoint_temp);
+          auto new_state = thermostat::slider::compute_state_from_temperature(target_temp);
+
+          id(active_setpoint_target) = target;
+          id(track_y_position) = new_state.track_y;
+          id(slider_track_height) = new_state.track_height;
+          id(slider_label_y) = new_state.label_y;
+          id(last_touch_y) = new_state.track_y;
+
+          lv_obj_t *track = id(temperature_track);
+          lv_obj_t *group = id(setpoint_group);
+          const int32_t start_y = lv_obj_get_y(track);
+          const int32_t start_height = lv_obj_get_height(track);
+          const int32_t start_label_y = lv_obj_get_y(group);
+
+          lv_anim_del(track, nullptr);
+          lv_anim_del(id(cooling_setpoint), nullptr);
+          lv_anim_del(id(heating_setpoint), nullptr);
+
+          lv_anim_t anim_y;
+          lv_anim_init(&anim_y);
+          lv_anim_set_var(&anim_y, track);
+          lv_anim_set_values(&anim_y, start_y, new_state.track_y);
+          lv_anim_set_time(&anim_y, 120);
+          lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
+          lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
+            lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+          });
+          lv_anim_start(&anim_y);
+
+          lv_anim_t anim_height;
+          lv_anim_init(&anim_height);
+          lv_anim_set_var(&anim_height, track);
+          lv_anim_set_values(&anim_height, start_height, new_state.track_height);
+          lv_anim_set_time(&anim_height, 120);
+          lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
+          lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
+            lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
+          });
+          lv_anim_start(&anim_height);
+
+          lv_anim_t anim_label;
+          lv_anim_init(&anim_label);
+          lv_anim_set_var(&anim_label, group);
+          lv_anim_set_values(&anim_label, start_label_y, new_state.label_y);
+          lv_anim_set_time(&anim_label, 120);
+          lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
+          lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
+            lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+          });
+          lv_anim_start(&anim_label);
+
+          const uint32_t neutral_color = 0x303030;
+          const uint32_t track_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x2776cc;
+          const uint32_t track_end_color = new_heating ? 0xe1752e : 0x2776cc;
+          thermostat::ui::animate_two_stage_color(track, track_start_color, neutral_color, track_end_color, 60, false);
+
+          const uint32_t cooling_start_color = (old_target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x292929;
+          const uint32_t heating_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x292929;
+          const uint32_t cooling_end_color = (target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x292929;
+          const uint32_t heating_end_color = (target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x292929;
+          thermostat::ui::animate_two_stage_color(id(cooling_setpoint), cooling_start_color, neutral_color, cooling_end_color, 60, true);
+          thermostat::ui::animate_two_stage_color(id(heating_setpoint), heating_start_color, neutral_color, heating_end_color, 60, true);
+      - script.execute: refresh_setpoint_labels
+  - id: run_desktop_loading_timeout
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(load_timeout_enabled) && !id(load_timeout_triggered);
+          then:
+            - logger.log:
+                level: DEBUG
+                format: "[loading] Desktop timeout armed for ${thermostat_ui_desktop_timeout_duration}"
+            - delay: ${thermostat_ui_desktop_timeout_duration}
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_ready);
+                then:
+                  - logger.log:
+                      level: DEBUG
+                      format: "[loading] Desktop timeout fired; forcing main page"
+                  - lvgl.page.show: main_page
+            - globals.set:
+                id: load_timeout_triggered
+                value: 'true'
+            - logger.log:
+                level: DEBUG
+                format: "[loading] Desktop timeout completed (ui_ready=%d)"
+                args:
+                  - 'id(ui_ready)'
+          else:
+            - logger.log:
+                level: DEBUG
+                format: "[loading] Desktop timeout skipped (enabled=%d triggered=%d)"
+                args:
+                  - 'id(load_timeout_enabled)'
+                  - 'id(load_timeout_triggered)'
+  - id: update_loading_state
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(data_weather_condition_ready) &&
+                     id(data_weather_temperature_ready) &&
+                     id(data_room_name_ready) &&
+                     id(data_room_temperature_ready) &&
+                     id(data_target_high_ready) &&
+                     id(data_target_low_ready) &&
+                     id(data_fan_mode_ready);
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_ready);
+                then:
+                  - logger.log:
+                      level: DEBUG
+                      format: "[loading] All required data received; showing main page"
+                  - globals.set:
+                      id: ui_ready
+                      value: 'true'
+                  - script.execute: sync_active_setpoint_visuals
+                  - lvgl.page.show: main_page
+            - lvgl.label.update:
+                id: loading_status_text
+                text: ""
+          else:
+            - logger.log:
+                level: DEBUG
+                format: "[loading] Waiting for data (weather_cond=%d weather_temp=%d room_name=%d room_temp=%d target_high=%d target_low=%d fan_mode=%d timeout_enabled=%d timeout_triggered=%d)"
+                args:
+                  - 'id(data_weather_condition_ready)'
+                  - 'id(data_weather_temperature_ready)'
+                  - 'id(data_room_name_ready)'
+                  - 'id(data_room_temperature_ready)'
+                  - 'id(data_target_high_ready)'
+                  - 'id(data_target_low_ready)'
+                  - 'id(data_fan_mode_ready)'
+                  - 'id(load_timeout_enabled)'
+                  - 'id(load_timeout_triggered)'
+            - lvgl.label.update:
+                id: loading_status_text
+                text: !lambda |-
+                  const int total = 7;
+                  int ready = (id(data_weather_condition_ready) ? 1 : 0) +
+                              (id(data_weather_temperature_ready) ? 1 : 0) +
+                              (id(data_room_name_ready) ? 1 : 0) +
+                              (id(data_room_temperature_ready) ? 1 : 0) +
+                              (id(data_target_high_ready) ? 1 : 0) +
+                              (id(data_target_low_ready) ? 1 : 0) +
+                              (id(data_fan_mode_ready) ? 1 : 0);
+                  std::string message = esphome::str_sprintf("Waiting for data %d/%d", ready, total);
+                  std::string missing;
+                  auto append = [&](const char *label) {
+                    if (!missing.empty()) missing += ", ";
+                    missing += label;
+                  };
+                  if (!id(data_weather_condition_ready) || !id(data_weather_temperature_ready)) append("weather");
+                  if (!id(data_room_name_ready) || !id(data_room_temperature_ready)) append("room");
+                  if (!id(data_target_high_ready) || !id(data_target_low_ready)) append("target temps");
+                  if (!id(data_fan_mode_ready)) append("fan mode");
+                  if (!missing.empty()) {
+                    message += "\nMissing: ";
+                    message += missing;
+                  }
+                  return message;
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ui_ready);
+                then:
+                  - globals.set:
+                      id: ui_ready
+                      value: 'false'
+                  - lvgl.page.show: loading_page
+
+
+switch:
+  - platform: template
+    name: "${friendly_name} Antiburn"
+    id: switch_antiburn
+    icon: mdi:television-shimmer
+    entity_category: config
+    optimistic: true
+    internal: ${thermostat_ui_antiburn_internal}
+    turn_on_action:
+      - if:
+          condition:
+            lambda: 'return id(antiburn_feature_enabled);'
+          then:
+            - logger.log:
+                level: DEBUG
+                format: "Starting Antiburn"
+            - if:
+                condition: lvgl.is_paused
+                then:
+                  - lvgl.resume:
+                  - lvgl.widget.redraw:
+            - lvgl.pause:
+                show_snow: true
+            - if:
+                condition:
+                  lambda: 'return id(has_backlight_light);'
+                then:
+                  - light.turn_off: display_backlight
+          else:
+            - logger.log:
+                level: DEBUG
+                format: "Antiburn disabled; ignoring turn_on"
+    turn_off_action:
+      - if:
+          condition:
+            lambda: 'return id(antiburn_feature_enabled);'
+          then:
+            - logger.log:
+                level: DEBUG
+                format: "Stopping Antiburn"
+            - if:
+                condition: lvgl.is_paused
+                then:
+                  - lvgl.resume:
+                  - lvgl.widget.redraw:
+            - if:
+                condition:
+                  lambda: 'return id(has_backlight_light);'
+                then:
+                  - light.turn_on: display_backlight
+          else:
+            - logger.log:
+                level: DEBUG
+                format: "Antiburn disabled; ignoring turn_off"
+
+
+interval:
+  - interval: 1min
+    then:
+      - lambda: |-
+          if (!id(antiburn_feature_enabled)) {
+            if (id(switch_antiburn).state) {
+              id(switch_antiburn).turn_off();
+            }
+            return;
+          }
+          auto now = id(${thermostat_ui_time_id}).now();
+          if (!now.is_valid()) {
+            return;
+          }
+          int minute = now.minute;
+          if (minute == id(antiburn_last_minute)) {
+            return;
+          }
+          id(antiburn_last_minute) = minute;
+          bool within_hours = now.hour >= 2 && now.hour <= 5;
+          if (within_hours && minute == 5) {
+            if (!id(switch_antiburn).state) {
+              ESP_LOGD("main", "[loading] Antiburn schedule start");
+              id(switch_antiburn).turn_on();
+            }
+          } else if (within_hours && minute == 35) {
+            if (id(switch_antiburn).state) {
+              ESP_LOGD("main", "[loading] Antiburn schedule stop");
+              id(switch_antiburn).turn_off();
+            }
+          } else if (!within_hours && id(switch_antiburn).state) {
+            ESP_LOGD("main", "[loading] Antiburn stop outside window");
+            id(switch_antiburn).turn_off();
+          }
+  - interval: 32ms
+    then:
+      - if:
+          condition:
+            lambda: |-
+              static bool last_dragging = false;
+              bool current_dragging = id(is_dragging);
+              if (current_dragging != last_dragging) {
+                ESP_LOGD("drag", "Dragging state changed: %s", current_dragging ? "STARTED" : "STOPPED");
+                last_dragging = current_dragging;
+              }
+              return current_dragging;
+          then:
+            - lambda: |-
+                auto touch = id(${thermostat_touchscreen_id});
+                auto touch_point = touch->get_touch();
+                if (touch_point.has_value()) {
+                  int raw_y = touch_point.value().y;
+                  if (raw_y < -100 || raw_y > 600) {
+                    ESP_LOGD("drag", "Ignoring out-of-range sample: raw_y=%d", raw_y);
+                    return;
+                  }
+                  auto state = thermostat::slider::compute_state_from_y(raw_y);
+                  float adjusted = state.setpoint;
+                  if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                    adjusted = thermostat::slider::clamp_heating(adjusted, id(cooling_setpoint_temp));
+                  } else {
+                    adjusted = thermostat::slider::clamp_cooling(adjusted, id(heating_setpoint_temp));
+                  }
+                  auto clamped_state = thermostat::slider::compute_state_from_temperature(adjusted);
+
+                  int previous_y = id(track_y_position);
+                  int delta_y = clamped_state.track_y - previous_y;
+                  if (abs(delta_y) > 1) {
+                    ESP_LOGD("drag", "Dragging: raw_y=%d, clamped_y=%d, delta=%d", raw_y, clamped_state.track_y, delta_y);
+                  }
+
+                  id(track_y_position) = clamped_state.track_y;
+                  id(last_touch_y) = clamped_state.track_y;
+                  id(slider_track_height) = clamped_state.track_height;
+                  id(slider_label_y) = clamped_state.label_y;
+                  if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                    id(heating_setpoint_temp) = clamped_state.setpoint;
+                  } else {
+                    id(cooling_setpoint_temp) = clamped_state.setpoint;
+                  }
+
+                  ESP_LOGD("temp", "Track y=%d, Temperature=%.1f", clamped_state.track_y, clamped_state.setpoint);
+                }
+            - lvgl.widget.update:
+                id: temperature_track
+                y: !lambda return id(track_y_position);
+                height: !lambda return id(slider_track_height);
+            - lvgl.widget.update:
+                id: setpoint_group
+                y: !lambda return id(slider_label_y);
+            - script.execute: refresh_setpoint_labels

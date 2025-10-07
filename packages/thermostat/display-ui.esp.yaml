@@ -1,0 +1,6 @@
+packages:
+  thermostat-defaults: !include defaults.esp.yaml
+  thermostat-ui-assets: !include ui/assets.esp.yaml
+  thermostat-ui-runtime: !include ui/runtime.esp.yaml
+  thermostat-ui-data-sources: !include ui/data-sources.esp.yaml
+  thermostat-ui-layout: !include ui/layout.esp.yaml

@@ -1,0 +1,122 @@
+image:
+  - file: mdi:connection
+    id: loading_connection
+    type: grayscale
+    transparency: alpha_channel
+    resize: 128x128
+  - file: mdi:home
+    id: loading_home
+    type: grayscale
+    transparency: alpha_channel
+    resize: 128x128
+  - file: mdi:power
+    id: power
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:snowflake
+    id: snowflake
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:fire
+    id: fire
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:fan
+    id: fan
+    type: grayscale
+    transparency: alpha_channel
+    resize: 36x36
+  - file: mdi:weather-night
+    id: clear_night
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-cloudy
+    id: cloudy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-fog
+    id: fog
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-hail
+    id: hail
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-lightning
+    id: lightning
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-lightning-rainy
+    id: lightning_rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-partly-cloudy
+    id: partlycloudy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-pouring
+    id: pouring
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-rainy
+    id: rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-snowy
+    id: snowy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-snowy-rainy
+    id: snowy_rainy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-sunny
+    id: sunny
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-windy
+    id: windy
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:weather-windy-variant
+    id: windy_variant
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+
+font:
+  - file: gfonts://Figtree@600
+    id: setpoint_font
+    size: 72
+    bpp: 4
+    glyphs: [
+      0123456789,°.
+    ]
+  - file: gfonts://Figtree@500
+    id: top_bar_weather
+    size: 25
+    bpp: 4
+  - file: gfonts://Figtree@300
+    id: top_bar_room
+    size: 23
+    bpp: 8
+  - file: gfonts://Figtree@500
+    id: top_bar_temp
+    size: 23
+    bpp: 4

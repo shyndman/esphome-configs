@@ -1,0 +1,192 @@
+sensor:
+  - platform: homeassistant
+    id: outside_temperature
+    entity_id: weather.pirate_toronto
+    attribute: temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: weather_temp
+            text: !lambda |-
+              return std::string(std::to_string((int)x) + "°");
+        - lvgl.widget.update:
+            id: weather_temp
+            opa: 100%
+        - globals.set:
+            id: data_weather_temperature_ready
+            value: 'true'
+        - script.execute: update_loading_state
+  - platform: homeassistant
+    id: room_temperature
+    entity_id: sensor.thermostat_target_room_temperature
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: room_temp
+            text: !lambda |-
+              return esphome::str_sprintf("%.1f°", x);
+        - lvgl.widget.update:
+            id: room_temp
+            opa: 100%
+        - globals.set:
+            id: current_temperature
+            value: !lambda 'return x;'
+        - globals.set:
+            id: data_room_temperature_ready
+            value: 'true'
+        - script.execute: update_loading_state
+  - platform: homeassistant
+    id: target_low
+    entity_id: climate.thermostat_climate_ctrl_climate_control
+    attribute: target_temp_low
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    on_value:
+      then:
+        - logger.log:
+            level: DEBUG
+            format: "[loading] target_low raw=%.2f"
+            args:
+              - 'x'
+        - if:
+            condition:
+              lambda: |-
+                return !std::isnan(x) && x >= 10.0f && x <= 35.0f;
+            then:
+              - lambda: |-
+                  float sanitized = thermostat::slider::clamp_heating(x, id(cooling_setpoint_temp));
+                  id(heating_setpoint_temp) = sanitized;
+                  if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                    auto state = thermostat::slider::compute_state_from_temperature(sanitized);
+                    id(track_y_position) = state.track_y;
+                    id(slider_track_height) = state.track_height;
+                    id(slider_label_y) = state.label_y;
+                    id(last_touch_y) = state.track_y;
+                  }
+              - script.execute: refresh_setpoint_labels
+              - if:
+                  condition:
+                    lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_heating};'
+                  then:
+                    - script.execute: sync_active_setpoint_visuals
+              - globals.set:
+                  id: data_target_low_ready
+                  value: 'true'
+              - script.execute: update_loading_state
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "[loading] target_low ignored (value=%.2f)"
+                  args:
+                    - 'x'
+  - platform: homeassistant
+    id: target_high
+    entity_id: climate.thermostat_climate_ctrl_climate_control
+    attribute: target_temp_high
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    on_value:
+      then:
+        - logger.log:
+            level: DEBUG
+            format: "[loading] target_high raw=%.2f"
+            args:
+              - 'x'
+        - if:
+            condition:
+              lambda: |-
+                return !std::isnan(x) && x >= 10.0f && x <= 35.0f;
+            then:
+              - lambda: |-
+                  float sanitized = thermostat::slider::clamp_cooling(x, id(heating_setpoint_temp));
+                  id(cooling_setpoint_temp) = sanitized;
+                  if (id(active_setpoint_target) == ${thermostat_ui_target_cooling}) {
+                    auto state = thermostat::slider::compute_state_from_temperature(sanitized);
+                    id(track_y_position) = state.track_y;
+                    id(slider_track_height) = state.track_height;
+                    id(slider_label_y) = state.label_y;
+                    id(last_touch_y) = state.track_y;
+                  }
+              - script.execute: refresh_setpoint_labels
+              - if:
+                  condition:
+                    lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_cooling};'
+                  then:
+                    - script.execute: sync_active_setpoint_visuals
+              - globals.set:
+                  id: data_target_high_ready
+                  value: 'true'
+              - script.execute: update_loading_state
+            else:
+              - logger.log:
+                  level: DEBUG
+                  format: "[loading] target_high ignored (value=%.2f)"
+                  args:
+                    - 'x'
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_condition
+    entity_id: weather.pirate_toronto
+    on_value:
+      then:
+        - lvgl.image.update:
+            id: weather_icon
+            src: !lambda |-
+              std::string condition = x;
+              if (condition == "sunny" || condition == "clear") return id(sunny);
+              if (condition == "clear-night") return id(clear_night);
+              if (condition == "partlycloudy") return id(partlycloudy);
+              if (condition == "cloudy" || condition == "overcast") return id(cloudy);
+              if (condition == "fog" || condition == "hazy") return id(fog);
+              if (condition == "rainy") return id(rainy);
+              if (condition == "pouring") return id(pouring);
+              if (condition == "snowy") return id(snowy);
+              if (condition == "snowy-rainy") return id(snowy_rainy);
+              if (condition == "lightning" || condition == "thunderstorm") return id(lightning);
+              if (condition == "lightning-rainy") return id(lightning_rainy);
+              if (condition == "windy") return id(windy);
+              if (condition == "windy-variant") return id(windy_variant);
+              if (condition == "hail") return id(hail);
+              return id(sunny);
+        - lvgl.widget.update:
+            id: weather_icon
+            opa: 100%
+        - globals.set:
+            id: data_weather_condition_ready
+            value: 'true'
+        - script.execute: update_loading_state
+  - platform: homeassistant
+    id: room_name_sensor
+    entity_id: sensor.thermostat_target_room_name
+    on_value:
+      then:
+        - lvgl.label.update:
+            id: room_name
+            text: !lambda return x;
+        - lvgl.widget.update:
+            id: room_name
+            opa: 100%
+        - globals.set:
+            id: data_room_name_ready
+            value: 'true'
+        - script.execute: update_loading_state
+  - platform: homeassistant
+    id: fan_mode_sensor
+    entity_id: climate.thermostat_climate_ctrl_climate_control
+    attribute: fan_mode
+    on_value:
+      then:
+        - logger.log:
+            level: DEBUG
+            format: "[loading] fan_mode raw=%s"
+            args:
+              - 'x.c_str()'
+        - globals.set:
+            id: data_fan_mode_ready
+            value: 'true'
+        - script.execute: update_loading_state

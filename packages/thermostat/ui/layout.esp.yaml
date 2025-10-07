@@ -1,0 +1,317 @@
+lvgl:
+  displays:
+    - ${thermostat_display_id}
+  touchscreens:
+    - touchscreen_id: ${thermostat_touchscreen_id}
+  buffer_size: 100%
+  on_idle:
+    timeout: !lambda "return static_cast<uint32_t>(id(display_timeout).state * 1000.0f);"
+    then:
+      - logger.log:
+          level: DEBUG
+          format: "[idle] LVGL is idle"
+      - if:
+          condition:
+            lambda: 'return id(has_backlight_light);'
+          then:
+            - light.turn_off: display_backlight
+      - lvgl.pause:
+
+  style_definitions:
+    - id: warming_color
+      bg_color: 0xe1752e
+    - id: cooling_color
+      bg_color: 0x2776cc
+    - id: transition_neutral_color
+      bg_color: 0x303030
+      text_color: 0x303030
+    - id: top_bar_color
+      text_color: 0xc0c0c0
+    - id: icon_bar_color
+      text_color: 0xdadada
+    - id: blurred_temp_color
+      text_color: 0x303030
+
+  pages:
+    - id: loading_page
+      bg_color: 0x000000
+      scrollable: false
+      scrollbar_mode: 'off'
+      widgets:
+        - obj:
+            align: center
+            width: 200
+            height: 300
+            x: 24
+            bg_opa: 0
+            border_width: 0
+            scrollable: false
+            scrollbar_mode: 'off'
+            layout:
+              type: flex
+              flex_flow: column
+              flex_align_main: center
+              flex_align_cross: center
+              pad_row: 20
+            widgets:
+              - image:
+                  id: loading_connection_icon
+                  src: loading_connection
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - image:
+                  id: loading_home_icon
+                  src: loading_home
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - label:
+                  id: loading_status_text
+                  text: "Waiting for data..."
+                  text_font: top_bar_room
+                  text_color: 0xdadada
+                  pad_top: 16
+                  long_mode: SCROLL_CIRCULAR
+    - id: main_page
+      bg_color: 0x000000
+      scrollable: false
+      scrollbar_mode: 'off'
+      widgets:
+        - obj:
+            id: top_bar
+            x: 0
+            y: 0
+            width: 100%
+            height: 40
+            bg_opa: 0
+            border_width: 0
+            scrollable: false
+            scrollbar_mode: 'off'
+            pad_all: 0
+            layout:
+              type: FLEX
+              flex_flow: ROW
+              flex_align_main: SPACE_BETWEEN
+              flex_align_cross: CENTER
+            widgets:
+              - obj:
+                  id: weather_group
+                  bg_opa: 0
+                  border_width: 0
+                  flex_grow: 1
+                  scrollbar_mode: 'off'
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_cross: center
+                  widgets:
+                    - image:
+                        id: weather_icon
+                        src: sunny
+                        image_recolor: 0xc0c0c0
+                        image_recolor_opa: 100%
+                        opa: 0
+                    - label:
+                        id: weather_temp
+                        text: ""
+                        text_font: top_bar_weather
+                        text_color: 0xc0c0c0
+                        opa: 0
+              - obj:
+                  id: room_group
+                  bg_opa: 0
+                  border_width: 0
+                  flex_grow: 1
+                  y: 1
+                  scrollbar_mode: 'off'
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: end
+                    flex_align_cross: center
+                  widgets:
+                    - label:
+                        id: room_name
+                        text: ""
+                        text_font: top_bar_room
+                        text_color: 0xc0c0c0
+                        opa: 0
+                    - label:
+                        id: room_temp
+                        text: ""
+                        text_font: top_bar_temp
+                        text_color: 0xc0c0c0
+                        opa: 0
+        - obj:
+            id: setpoint_group
+            bg_opa: 0
+            border_width: 0
+            y: !lambda return id(slider_label_y);
+            width: 100%
+            height: 70
+            pad_all: 0
+            pad_left: 48
+            pad_right: 48
+            scrollable: false
+            scrollbar_mode: 'off'
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_between
+            widgets:
+              - label:
+                  id: cooling_setpoint
+                  text: "24°"
+                  text_font: setpoint_font
+                  text_color: 0x292929
+                  clickable: true
+                  on_press:
+                    then:
+                      - script.execute:
+                          id: select_setpoint_target
+                          target: ${thermostat_ui_target_cooling}
+              - label:
+                  id: heating_setpoint
+                  text: "21°"
+                  text_font: setpoint_font
+                  text_color: 0xe1752e
+                  text_align: right
+                  clickable: true
+                  on_press:
+                    then:
+                      - script.execute:
+                          id: select_setpoint_target
+                          target: ${thermostat_ui_target_heating}
+        - obj:
+            id: temperature_track
+            x: 0
+            y: !lambda return id(track_y_position);
+            width: 480
+            height: !lambda return id(slider_track_height);
+            bg_color: 0xe1752e
+            border_width: 0
+            radius: 0
+            scrollbar_mode: 'off'
+            clickable: false
+            gesture_bubble: true
+        - obj:
+            id: slider_bound_top
+            x: 0
+            y: !lambda return thermostat::slider::track_min_y();
+            width: 480
+            height: 1
+            bg_color: 0xff0000
+            bg_opa: 80%
+            clickable: false
+            scrollbar_mode: 'off'
+        - obj:
+            id: slider_bound_bottom
+            x: 0
+            y: !lambda return thermostat::slider::track_max_y();
+            width: 480
+            height: 1
+            bg_color: 0x00ff00
+            bg_opa: 80%
+            clickable: false
+            scrollbar_mode: 'off'
+        - obj:
+            id: track_touch_zone
+            x: 0
+            y: 40
+            width: 480
+            height: 440
+            bg_opa: 0
+            border_width: 0
+            clickable: true
+            scrollbar_mode: 'off'
+            on_press:
+              then:
+                - logger.log:
+                    level: DEBUG
+                    format: "Touch zone pressed!"
+                - lambda: |-
+                    auto touch = id(${thermostat_touchscreen_id});
+                    auto touch_point = touch->get_touch();
+                    if (touch_point.has_value()) {
+                      int raw_y = touch_point.value().y;
+                      if (raw_y < -100 || raw_y > 600) {
+                        ESP_LOGW("touch", "Ignoring out-of-range press y=%d", raw_y);
+                        id(is_dragging) = false;
+                        return;
+                      }
+                      int clamped_y = raw_y;
+                      if (clamped_y < thermostat::slider::track_min_y()) clamped_y = thermostat::slider::track_min_y();
+                      if (clamped_y > thermostat::slider::track_max_y()) clamped_y = thermostat::slider::track_max_y();
+                      auto state = thermostat::slider::compute_state_from_y(clamped_y);
+                      float adjusted = state.setpoint;
+                      if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                        adjusted = thermostat::slider::clamp_heating(adjusted, id(cooling_setpoint_temp));
+                      } else {
+                        adjusted = thermostat::slider::clamp_cooling(adjusted, id(heating_setpoint_temp));
+                      }
+                      auto clamped_state = thermostat::slider::compute_state_from_temperature(adjusted);
+
+                      id(track_y_position) = clamped_state.track_y;
+                      id(last_touch_y) = clamped_state.track_y;
+                      id(slider_track_height) = clamped_state.track_height;
+                      id(slider_label_y) = clamped_state.label_y;
+                      if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                        id(heating_setpoint_temp) = clamped_state.setpoint;
+                      } else {
+                        id(cooling_setpoint_temp) = clamped_state.setpoint;
+                      }
+
+                      id(is_dragging) = true;
+
+                      ESP_LOGD("touch", "Initial touch at y=%d (clamped=%d)", raw_y, clamped_y);
+                    } else {
+                      ESP_LOGW("touch", "No touch point available on press");
+                      id(is_dragging) = false;
+                    }
+                - lvgl.widget.update:
+                    id: temperature_track
+                    y: !lambda return id(track_y_position);
+                    height: !lambda return id(slider_track_height);
+                - lvgl.widget.update:
+                    id: setpoint_group
+                    y: !lambda return id(slider_label_y);
+                - script.execute: refresh_setpoint_labels
+            on_release:
+              then:
+                - logger.log:
+                    level: DEBUG
+                    format: "Touch zone released!"
+                - globals.set:
+                    id: is_dragging
+                    value: 'false'
+                - script.execute: commit_setpoints
+        - obj:
+            id: action_bar
+            x: 0
+            y: 390
+            width: 100%
+            height: 70
+            bg_opa: 0
+            border_width: 0
+            scrollable: false
+            scrollbar_mode: 'off'
+            layout:
+              type: flex
+              flex_flow: row
+              flex_align_main: space_evenly
+              flex_align_cross: center
+            widgets:
+              - image:
+                  id: mode_icon
+                  src: snowflake
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - image:
+                  id: power_icon
+                  src: power
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
+              - image:
+                  id: fan_icon
+                  src: fan
+                  image_recolor: 0xdadada
+                  image_recolor_opa: 100%
