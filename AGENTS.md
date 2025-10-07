@@ -30,3 +30,10 @@
 - Keep secrets out of version control; provide `.example` placeholders under `support/` when guidance is required.
 - Select the correct partition CSV from `include/` before enabling large assets or PSRAM-heavy features.
 - Store source animations or icons in `assets/` and note the generator script (`scripts/create_sliding_text_gif.py`) so others can reproduce them.
+
+## Thermostat Display Stack
+- `thermostat-display.esp.yaml` is the deployed LVGL touchscreen on the LilyGO T-Panel S3; it pulls in `packages/thermostat/display-ui.esp.yaml`, which composes shared defaults, assets, runtime scripts, data sources, and the LVGL layout under `packages/thermostat/ui/`.
+- `thermostat-display-desktop.esp.yaml` runs the same UI against SDL display/touch backends for fast iteration on a desktop; it overrides the idle timeout, disables antiburn, and swaps the time source to `host`.
+- Runtime behaviour (animations, slider math, HA service calls) lives in `packages/thermostat/ui/runtime.esp.yaml` with helpers in `include/thermostat_slider_state.h` and `include/thermostat_ui_animation.h`; the LVGL widget tree is defined in `packages/thermostat/ui/layout.esp.yaml`.
+- Home Assistant entities feed the UI through `packages/thermostat/ui/data-sources.esp.yaml`; the matching climate brain is `thermostat-controller.esp.yaml`, which exposes `climate.thermostat_climate_ctrl_climate_control` and the sensors the display expects.
+- For changes, run `esphome config thermostat-display.esp.yaml` (and the desktop variant when tweaking UI) before committing; capture `esphome logs` once on hardware to verify memory and antiburn behaviour.
