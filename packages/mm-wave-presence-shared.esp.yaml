@@ -1,6 +1,10 @@
+substitutions:
+  mm_wave_rx_pin: "7"
+  mm_wave_tx_pin: "6"
+
 uart:
-  rx_pin: 7
-  tx_pin: 6
+  rx_pin: ${mm_wave_rx_pin}
+  tx_pin: ${mm_wave_tx_pin}
   baud_rate: 115200
   parity: NONE
   stop_bits: 1
