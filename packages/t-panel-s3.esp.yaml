@@ -65,6 +65,22 @@ touchscreen:
       x_max: 478
       y_min: 0
       y_max: 478
+    on_release:
+      then:
+        - if:
+            condition: lvgl.is_paused
+            then:
+              - logger.log:
+                  level: DEBUG
+                  format: "[idle] LVGL resuming"
+              - lvgl.resume:
+              - lvgl.widget.redraw:
+              - light.turn_on: display_backlight
+        - if:
+            condition:
+              lambda: 'return id(switch_antiburn).state;'
+            then:
+              - switch.turn_off: switch_antiburn
 
 
 display:
