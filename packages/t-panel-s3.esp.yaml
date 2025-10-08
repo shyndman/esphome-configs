@@ -6,7 +6,7 @@ esphome:
   platformio_options:
     build_flags: -DBOARD_HAS_PSRAM
     board_build.f_flash: 80000000L
-    board_build.flash_mode: dio
+    board_build.flash_mode: qio
     build_unflags: -Werror=all
 
 esp32:
@@ -35,11 +35,11 @@ xl9535:
 spi:
   interface: software
   clk_pin:
-      xl9535: io_hub
-      number: 15
+    xl9535: io_hub
+    number: 15
   mosi_pin:
-      xl9535: io_hub
-      number: 16
+    xl9535: io_hub
+    number: 16
 
 output:
   - platform: ledc
@@ -51,15 +51,19 @@ light:
   - platform: monochromatic
     id: display_backlight
     output: backlight_pwm
-    name: "${friendly_name} Backlight"
+    name: '${friendly_name} Backlight'
     default_transition_length: 250ms
     restore_mode: RESTORE_DEFAULT_ON
 
 touchscreen:
   - platform: cst3240
     id: rgb_display_touchscreen
-    interrupt_pin: 21  # Adjust to your actual interrupt pin
+    interrupt_pin: 21
+    update_interval: 20ms
     display: rgb_display
+    reset_pin:
+      xl9535: io_hub
+      number: 4
     calibration:
       x_min: 0
       x_max: 478
@@ -72,7 +76,7 @@ touchscreen:
             then:
               - logger.log:
                   level: DEBUG
-                  format: "[idle] LVGL resuming"
+                  format: '[idle] LVGL resuming'
               - lvgl.resume:
               - lvgl.widget.redraw:
               - light.turn_on: display_backlight
@@ -81,7 +85,6 @@ touchscreen:
               lambda: 'return id(switch_antiburn).state;'
             then:
               - switch.turn_off: switch_antiburn
-
 
 display:
   - platform: mipi_rgb
