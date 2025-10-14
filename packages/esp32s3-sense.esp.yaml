@@ -20,9 +20,10 @@ psram:
 
 i2c:
   - id: bus_i2c
-    sda: 5
-    scl: 6
+    sda: 8
+    scl: 7
     scan: true
+    frequency: 400kHz
   - id: camera_i2c
     sda: 40
     scl: 39
