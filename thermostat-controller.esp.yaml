@@ -286,6 +286,7 @@ light:
     num_leds: 2
     chipset: ws2812
     rgb_order: GRB
+    is_rgbw: true
     restore_mode: ALWAYS_ON
     effects:
       - pulse:
