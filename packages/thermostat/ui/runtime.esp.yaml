@@ -736,15 +736,6 @@ switch:
 
 
 interval:
-  - interval: 1s
-    then:
-      - lambda: |-
-          if (id(cooling_setpoint) == nullptr || id(heating_setpoint) == nullptr) {
-            return;
-          }
-          int cooling_height = lv_obj_get_height(id(cooling_setpoint));
-          int heating_height = lv_obj_get_height(id(heating_setpoint));
-          ESP_LOGD("setpoint", "cooling height=%d heating height=%d", cooling_height, heating_height);
   - interval: 1min
     then:
       - lambda: |-
