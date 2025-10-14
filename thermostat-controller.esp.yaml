@@ -230,6 +230,7 @@ binary_sensor:
   - platform: template
     name: Computed A/C
     id: computed_ac
+    publish_initial_state: true
     lambda: |-
       return id(climate_override).state ? id(override_ac).state : id(requested_ac).state;
     on_state:
@@ -243,6 +244,7 @@ binary_sensor:
   - platform: template
     name: Computed Heat
     id: computed_heat
+    publish_initial_state: true
     lambda: |-
       return id(climate_override).state ? id(override_heat).state : id(requested_heat).state;
     on_state:
@@ -256,6 +258,7 @@ binary_sensor:
   - platform: template
     name: Computed Fan
     id: computed_fan
+    publish_initial_state: true
     lambda: |-
       return id(climate_override).state ? id(override_fan).state : id(requested_fan).state;
     on_state:
