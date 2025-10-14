@@ -113,6 +113,12 @@ globals:
   - id: suppress_setpoint_animation
     type: bool
     initial_value: 'false'
+  - id: bird_alert_flash_state
+    type: bool
+    initial_value: 'false'
+  - id: data_hvac_status_ready
+    type: bool
+    initial_value: 'false'
 
 number:
   - platform: template
@@ -238,6 +244,12 @@ script:
             - script.execute: start_fan_animation
           else:
             - script.execute: stop_fan_animation
+  - id: show_bird_alert
+    mode: single
+    then:
+      - lvgl.page.show: bird_alert_page
+      - delay: 4500ms
+      - lvgl.page.show: main_page
   - id: sync_active_setpoint_visuals
     mode: restart
     then:
@@ -586,7 +598,8 @@ script:
                      id(data_room_temperature_ready) &&
                      id(data_target_high_ready) &&
                      id(data_target_low_ready) &&
-                     id(data_fan_mode_ready);
+                     id(data_fan_mode_ready) &&
+                     id(data_hvac_status_ready);
           then:
             - if:
                 condition:
@@ -607,7 +620,7 @@ script:
           else:
             - logger.log:
                 level: DEBUG
-                format: "[loading] Waiting for data (weather_cond=%d weather_temp=%d room_name=%d room_temp=%d target_high=%d target_low=%d fan_mode=%d timeout_enabled=%d timeout_triggered=%d)"
+                format: "[loading] Waiting for data (weather_cond=%d weather_temp=%d room_name=%d room_temp=%d target_high=%d target_low=%d fan_mode=%d hvac_status=%d timeout_enabled=%d timeout_triggered=%d)"
                 args:
                   - 'id(data_weather_condition_ready)'
                   - 'id(data_weather_temperature_ready)'
@@ -616,19 +629,21 @@ script:
                   - 'id(data_target_high_ready)'
                   - 'id(data_target_low_ready)'
                   - 'id(data_fan_mode_ready)'
+                  - 'id(data_hvac_status_ready)'
                   - 'id(load_timeout_enabled)'
                   - 'id(load_timeout_triggered)'
             - lvgl.label.update:
                 id: loading_status_text
                 text: !lambda |-
-                  const int total = 7;
+                  const int total = 8;
                   int ready = (id(data_weather_condition_ready) ? 1 : 0) +
                               (id(data_weather_temperature_ready) ? 1 : 0) +
                               (id(data_room_name_ready) ? 1 : 0) +
                               (id(data_room_temperature_ready) ? 1 : 0) +
                               (id(data_target_high_ready) ? 1 : 0) +
                               (id(data_target_low_ready) ? 1 : 0) +
-                              (id(data_fan_mode_ready) ? 1 : 0);
+                              (id(data_fan_mode_ready) ? 1 : 0) +
+                              (id(data_hvac_status_ready) ? 1 : 0);
                   std::string message = esphome::str_sprintf("Waiting for data %d/%d", ready, total);
                   std::string missing;
                   auto append = [&](const char *label) {
@@ -639,6 +654,7 @@ script:
                   if (!id(data_room_name_ready) || !id(data_room_temperature_ready)) append("room");
                   if (!id(data_target_high_ready) || !id(data_target_low_ready)) append("target temps");
                   if (!id(data_fan_mode_ready)) append("fan mode");
+                  if (!id(data_hvac_status_ready)) append("hvac status");
                   if (!missing.empty()) {
                     message += "\nMissing: ";
                     message += missing;
@@ -857,3 +873,16 @@ interval:
                 id: setpoint_group
                 y: !lambda return id(slider_label_y);
             - script.execute: refresh_setpoint_labels
+  - interval: 750ms
+    then:
+      - lambda: |-
+          id(bird_alert_flash_state) = !id(bird_alert_flash_state);
+      - lvgl.widget.update:
+          id: bird_alert_page
+          # TODO: Change these colors
+          bg_color: !lambda |-
+            return id(bird_alert_flash_state) ? lv_color_hex(0xff0000) : lv_color_hex(0x000000);
+      - lvgl.label.update:
+          id: bird_alert_label
+          text_color: !lambda |-
+            return id(bird_alert_flash_state) ? lv_color_hex(0x000000) : lv_color_hex(0xffffff);

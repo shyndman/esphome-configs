@@ -209,3 +209,59 @@ text_sensor:
             id(fan_is_running) = running;
             id(data_fan_mode_ready) = true;
         - script.execute: update_fan_animation
+
+binary_sensor:
+  - platform: homeassistant
+    id: computed_heat
+    entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_heat
+    on_state:
+      then:
+        - lambda: |-
+            const bool is_on = x;
+            ESP_LOGD("hvac", "computed_heat=%s", is_on ? "ON" : "OFF");
+            id(data_hvac_status_ready) = true;
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.label.update:
+                  id: hvac_status_label
+                  text: "HEATING"
+              - lvgl.label.update:
+                  id: hvac_status_label
+                  text_color: 0xe1752e
+              - lvgl.widget.update:
+                  id: hvac_status_label
+                  opa: 100%
+            else:
+              - lvgl.widget.update:
+                  id: hvac_status_label
+                  opa: 0
+        - script.execute: update_loading_state
+  - platform: homeassistant
+    id: computed_ac
+    entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_ac
+    on_state:
+      then:
+        - lambda: |-
+            const bool is_on = x;
+            ESP_LOGD("hvac", "computed_ac=%s", is_on ? "ON" : "OFF");
+            id(data_hvac_status_ready) = true;
+        - if:
+            condition:
+              lambda: 'return x;'
+            then:
+              - lvgl.label.update:
+                  id: hvac_status_label
+                  text: "COOLING"
+              - lvgl.label.update:
+                  id: hvac_status_label
+                  text_color: 0x2776cc
+              - lvgl.widget.update:
+                  id: hvac_status_label
+                  opa: 100%
+            else:
+              - lvgl.widget.update:
+                  id: hvac_status_label
+                  opa: 0
+        - script.execute: update_loading_state

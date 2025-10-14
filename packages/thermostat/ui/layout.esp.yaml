@@ -27,14 +27,14 @@ lvgl:
     - id: cooling_color
       bg_color: 0x2776cc
     - id: transition_neutral_color
-      bg_color: 0x4A4A4A
-      text_color: 0x4A4A4A
+      bg_color: 0x5A5A5A
+      text_color: 0x5A5A5A
     - id: top_bar_color
       text_color: 0xc0c0c0
     - id: icon_bar_color
       text_color: 0xdadada
     - id: blurred_temp_color
-      text_color: 0x4A4A4A
+      text_color: 0x5A5A5A
     - id: action_icon_style
       pad_all: 16
       radius: 8
@@ -148,6 +148,26 @@ lvgl:
                         opa: 0
                         pad_left: 8
               - obj:
+                  id: hvac_status_group
+                  bg_opa: 0
+                  border_width: 0
+                  flex_grow: 1
+                  scrollbar_mode: 'off'
+                  layout:
+                    type: flex
+                    flex_flow: row
+                    flex_align_main: center
+                    flex_align_cross: center
+                    pad_row: 0
+                    pad_column: 0
+                  widgets:
+                    - label:
+                        id: hvac_status_label
+                        text: ""
+                        text_font: top_bar_weather
+                        text_align: center
+                        opa: 0
+              - obj:
                   id: room_group
                   bg_opa: 0
                   border_width: 0
@@ -163,18 +183,18 @@ lvgl:
                     pad_row: 0
                     pad_column: 0
                   widgets:
-                    - image:
-                        id: room_icon
-                        src: room_default
-                        image_recolor: 0xc0c0c0
-                        image_recolor_opa: 100%
-                        opa: 0
-                        pad_right: 8
                     - label:
                         id: room_temp
                         text: ""
                         text_font: top_bar_temp
                         text_color: 0xc0c0c0
+                        opa: 0
+                        pad_right: 8
+                    - image:
+                        id: room_icon
+                        src: room_default
+                        image_recolor: 0xc0c0c0
+                        image_recolor_opa: 100%
                         opa: 0
                         pad_left: 8
         - obj:
@@ -454,3 +474,39 @@ lvgl:
                   pressed:
                     bg_color: 0xffffff
                     bg_opa: 15%
+    - id: bird_alert_page
+      bg_color: 0xff0000
+      scrollable: false
+      scrollbar_mode: 'off'
+      widgets:
+        - label:
+            id: bird_alert_label
+            text: "Bird Alert"
+            align: center
+            # TODO This font is not big enough
+            text_font: setpoint_primary_font
+            text_color: 0x000000
+        - obj:
+            id: bird_alert_touch_overlay
+            x: 0
+            y: 0
+            width: 100%
+            height: 100%
+            bg_opa: 0
+            border_width: 0
+            clickable: true
+            scrollbar_mode: 'off'
+            on_press:
+              then:
+                - script.stop: show_bird_alert
+                - lvgl.page.show: main_page
+    - id: nerd_mode_page
+      bg_color: 0x000000
+      scrollable: false
+      scrollbar_mode: 'off'
+      widgets:
+        - label:
+            text: "Nerd Mode"
+            align: center
+            text_font: setpoint_primary_font
+            text_color: 0xffffff

@@ -10,12 +10,19 @@ substitutions:
   thermostat_ui_antiburn_internal: 'true'
   thermostat_ui_has_backlight_light: 'false'
   thermostat_ui_time_id: sntp_time
+  thermostat_ui_startup_page: loading_page
 
 packages:
   thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
 
 esphome:
   name: ${name}
+  on_boot:
+    - priority: -100.0
+      then:
+        - script.execute: run_desktop_loading_timeout
+        - script.execute: sync_active_setpoint_visuals
+        - lvgl.page.show: ${thermostat_ui_startup_page}
 
 host:
 
