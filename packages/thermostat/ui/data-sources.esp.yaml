@@ -240,7 +240,7 @@ binary_sensor:
         - script.execute: update_loading_state
   - platform: homeassistant
     id: computed_ac
-    entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_ac
+    entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_a_c
     on_state:
       then:
         - lambda: |-
