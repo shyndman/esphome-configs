@@ -1,3 +1,11 @@
+substitutions:
+  # Camera FPS controls (override per-device as needed)
+  camera_max_fps: "6.0"
+  camera_overheat_fps: "1.0"
+  # Overheat thresholds (°C)
+  camera_overheat_threshold_c: "70.0"
+  camera_resume_threshold_c: "65.0"
+
 esphome:
   platformio_options:
     build_flags: -DBOARD_HAS_PSRAM
@@ -44,9 +52,9 @@ esp32_camera:
   pixel_clock_pin: 13
   # Camera config
   resolution: 1280x1024
-  jpeg_quality: 20
+  jpeg_quality: 24
   idle_framerate: 0.2fps
-  max_framerate: 30.0fps
+  max_framerate: ${camera_max_fps}fps
   wb_mode: home # white balance
   agc_mode: auto # automatic gain
   agc_gain_ceiling: 64x
@@ -60,10 +68,48 @@ esp32_camera_web_server:
   # - port: 8081
   #   mode: snapshot
 
+binary_sensor:
+  - platform: template
+    name: Camera Overheat
+    id: camera_overheat
+    device_class: heat
+    lambda: |-
+      if (!id(esp_internal_temp).has_state()) return false;
+      const float t = id(esp_internal_temp).state;
+      static bool latched = false;
+      if (latched) {
+        if (t <= ${camera_resume_threshold_c}) latched = false; // cooled sufficiently
+      } else {
+        if (t >= ${camera_overheat_threshold_c}) latched = true; // overheated
+      }
+      return latched;
+    on_press:
+      then:
+        - logger.log:
+            format: "Camera overheat detected (%.1f°C). Limiting camera to %.2f fps."
+            args: [ 'id(esp_internal_temp).state', '(float) ${camera_overheat_fps}' ]
+        - lambda: |-
+            const float fps = ${camera_overheat_fps};
+            if (fps > 0.0f) {
+              const uint32_t ms = (uint32_t)(1000.0f / fps);
+              id(espcam).set_max_update_interval(ms);
+            }
+    on_release:
+      then:
+        - logger.log:
+            format: "Camera temperature recovered (%.1f°C). Restoring previous camera framerate."
+            args: [ 'id(esp_internal_temp).state' ]
+        - lambda: |-
+            const float fps = ${camera_max_fps};
+            if (fps > 0.0f) {
+              const uint32_t ms = (uint32_t)(1000.0f / fps);
+              id(espcam).set_max_update_interval(ms);
+            }
+
 # Configuration for I2S audio
 i2s_audio:
   - id: transcription_i2s
-    i2s_lrclk_pin: 46 # Note: labeled as "useless"
+    i2s_lrclk_pin: 46
     i2s_bclk_pin: 42
 
 # Configuration for the microphone using I2S audio
