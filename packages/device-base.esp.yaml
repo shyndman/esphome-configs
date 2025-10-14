@@ -22,9 +22,10 @@ wifi:
 
   ap:
     password: !secret fallback_ap_password
+
   manual_ip:
-    gateway: 192.168.86.1
-    subnet: 255.255.252.0
+    gateway: !secret gateway_ip
+    subnet: !secret subnet_mask
     static_ip: ${ip_${name}}
 
 captive_portal:
