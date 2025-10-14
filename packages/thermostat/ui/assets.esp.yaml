@@ -223,18 +223,43 @@ image:
     type: grayscale
     transparency: alpha_channel
     resize: 28x28
+  - file: mdi:home
+    id: room_default
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:sofa
+    id: room_living
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:bed
+    id: room_bedroom
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:desk
+    id: room_office
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
+  - file: mdi:door
+    id: room_hallway
+    type: grayscale
+    transparency: alpha_channel
+    resize: 28x28
 
 font:
-  - file: gfonts://Figtree@600
+  - file: assets/fonts/figtree-tabular-numerals-semibold.otf
     id: setpoint_primary_font
     size: 72
     bpp: 4
     glyphs: [
       0123456789,°.
     ]
-  - file: gfonts://Figtree@600
+  - file: assets/fonts/figtree-tabular-numerals-semibold.otf
     id: setpoint_secondary_font
-    size: 28
+    size: 30
     bpp: 4
     glyphs: [
       0123456789,.

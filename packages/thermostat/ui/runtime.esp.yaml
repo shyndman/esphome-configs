@@ -50,6 +50,12 @@ globals:
   - id: last_touch_y
     type: int
     initial_value: '255'
+  - id: pending_drag_active
+    type: bool
+    initial_value: 'false'
+  - id: pending_drag_start_y
+    type: int
+    initial_value: '0'
   - id: slider_track_height
     type: int
     initial_value: '225'
@@ -327,7 +333,8 @@ script:
                        ? lv_color_hex(0xe1752e)
                        : lv_color_hex(0x292929);
       - lambda: |-
-          lv_obj_move_foreground(id(setpoint_group));
+          // Keep the setpoint text behind the track to let the bar trim any overlap.
+          lv_obj_move_background(id(setpoint_group));
           lv_obj_move_background(id(track_touch_zone));
       - script.execute: refresh_setpoint_labels
       - script.execute: update_mode_icon
@@ -423,11 +430,48 @@ script:
           thermostat::ui::animate_two_stage_color(id(heating_setpoint_fraction), heating_start_color, neutral_color, heating_end_color, 60, true);
       - script.execute: refresh_setpoint_labels
       - script.execute: update_mode_icon
+  - id: prime_drag_from_touch
+    mode: restart
+    then:
+      - lambda: |-
+          id(display_is_paused) = false;
+          auto touch = id(${thermostat_touchscreen_id});
+          if (touch == nullptr) {
+            ESP_LOGW("touch", "Touchscreen ID ${thermostat_touchscreen_id} not found");
+            id(pending_drag_active) = false;
+            return;
+          }
+
+          auto touch_point = touch->get_touch();
+          if (!touch_point.has_value()) {
+            ESP_LOGW("touch", "No touch point available on press (prime)");
+            id(pending_drag_active) = false;
+            return;
+          }
+
+          auto point = touch_point.value();
+          if (point.state != esphome::touchscreen::STATE_PRESSED &&
+              point.state != esphome::touchscreen::STATE_UPDATED) {
+            ESP_LOGD("touch", "Prime ignoring non-pressed state=%d", point.state);
+            id(pending_drag_active) = false;
+            return;
+          }
+
+          int raw_y = point.y;
+          if (raw_y < -100 || raw_y > 600) {
+            ESP_LOGW("touch", "Ignoring out-of-range prime y=%d", raw_y);
+            id(pending_drag_active) = false;
+            return;
+          }
+
+          id(pending_drag_active) = true;
+          id(pending_drag_start_y) = raw_y;
   - id: begin_drag_from_touch
     mode: restart
     then:
       - lambda: |-
           id(display_is_paused) = false;
+          id(pending_drag_active) = false;
           auto touch = id(${thermostat_touchscreen_id});
           if (touch == nullptr) {
             ESP_LOGW("touch", "Touchscreen ID ${thermostat_touchscreen_id} not found");
@@ -442,7 +486,15 @@ script:
             return;
           }
 
-          int raw_y = touch_point.value().y;
+          auto point = touch_point.value();
+          if (point.state != esphome::touchscreen::STATE_PRESSED &&
+              point.state != esphome::touchscreen::STATE_UPDATED) {
+            ESP_LOGD("touch", "Begin drag ignoring non-pressed state=%d", point.state);
+            id(is_dragging) = false;
+            return;
+          }
+
+          int raw_y = point.y;
           if (raw_y < -100 || raw_y > 600) {
             ESP_LOGW("touch", "Ignoring out-of-range press y=%d", raw_y);
             id(is_dragging) = false;
@@ -668,6 +720,15 @@ switch:
 
 
 interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(cooling_setpoint) == nullptr || id(heating_setpoint) == nullptr) {
+            return;
+          }
+          int cooling_height = lv_obj_get_height(id(cooling_setpoint));
+          int heating_height = lv_obj_get_height(id(heating_setpoint));
+          ESP_LOGD("setpoint", "cooling height=%d heating height=%d", cooling_height, heating_height);
   - interval: 1min
     then:
       - lambda: |-
@@ -708,19 +769,52 @@ interval:
             lambda: |-
               static bool last_dragging = false;
               bool current_dragging = id(is_dragging);
+              bool pending = id(pending_drag_active);
+              bool active = current_dragging || pending;
               if (current_dragging != last_dragging) {
                 ESP_LOGD("drag", "Dragging state changed: %s", current_dragging ? "STARTED" : "STOPPED");
                 last_dragging = current_dragging;
               }
-              return current_dragging;
+              if (pending && !current_dragging) {
+                ESP_LOGD("drag", "Pending drag active");
+              }
+              return active;
           then:
             - lambda: |-
                 auto touch = id(${thermostat_touchscreen_id});
+                if (touch == nullptr) {
+                  if (id(pending_drag_active)) {
+                    id(pending_drag_active) = false;
+                  }
+                  return;
+                }
                 auto touch_point = touch->get_touch();
                 if (touch_point.has_value()) {
-                  int raw_y = touch_point.value().y;
+                  auto point = touch_point.value();
+                  if (point.state != esphome::touchscreen::STATE_PRESSED &&
+                      point.state != esphome::touchscreen::STATE_UPDATED) {
+                    if (id(pending_drag_active)) {
+                      ESP_LOGD("drag", "Touch reported state=%d; cancelling pending", point.state);
+                      id(pending_drag_active) = false;
+                    }
+                    return;
+                  }
+
+                  int raw_y = point.y;
                   if (raw_y < -100 || raw_y > 600) {
                     ESP_LOGD("drag", "Ignoring out-of-range sample: raw_y=%d", raw_y);
+                    if (id(pending_drag_active)) {
+                      id(pending_drag_active) = false;
+                    }
+                    return;
+                  }
+                  if (id(pending_drag_active)) {
+                    int delta = raw_y - id(pending_drag_start_y);
+                    if (abs(delta) >= 4) {
+                      ESP_LOGD("drag", "Promoting pending drag (delta=%d)", delta);
+                      id(pending_drag_active) = false;
+                      id(begin_drag_from_touch).execute();
+                    }
                     return;
                   }
                   auto state = thermostat::slider::compute_state_from_y(raw_y);
@@ -749,6 +843,11 @@ interval:
                   }
 
                   ESP_LOGD("temp", "Track y=%d, Temperature=%.1f", clamped_state.track_y, clamped_state.setpoint);
+                } else {
+                  if (id(pending_drag_active)) {
+                    ESP_LOGD("drag", "Touch lost while pending; cancelling");
+                    id(pending_drag_active) = false;
+                  }
                 }
             - lvgl.widget.update:
                 id: temperature_track

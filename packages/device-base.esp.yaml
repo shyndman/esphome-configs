@@ -13,6 +13,7 @@ debug:
 time:
   - platform: homeassistant
     id: esptime
+    timezone: America/Toronto
 
 wifi:
   ssid: !secret wifi_ssid

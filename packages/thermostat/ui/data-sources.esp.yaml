@@ -167,11 +167,17 @@ text_sensor:
     entity_id: sensor.thermostat_target_room_name
     on_value:
       then:
-        - lvgl.label.update:
-            id: room_name
-            text: !lambda return x;
+        - lvgl.image.update:
+            id: room_icon
+            src: !lambda |-
+              std::string room = x;
+              if (room == "Living Room") return id(room_living);
+              if (room == "Bedroom") return id(room_bedroom);
+              if (room == "Office") return id(room_office);
+              if (room == "Hallway") return id(room_hallway);
+              return id(room_default);
         - lvgl.widget.update:
-            id: room_name
+            id: room_icon
             opa: 100%
         - globals.set:
             id: data_room_name_ready
