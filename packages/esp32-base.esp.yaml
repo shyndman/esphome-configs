@@ -3,5 +3,6 @@ packages:
 
 sensor:
   - platform: internal_temperature
+    id: esp_internal_temp
     name: "Internal Temperature"
     update_interval: 150s
