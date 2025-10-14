@@ -65,9 +65,9 @@ lvgl:
       widgets:
         - obj:
             align: center
-            width: 200
-            height: 300
-            x: 24
+            width: 440
+            height: 450
+            x: 0
             bg_opa: 0
             border_width: 0
             scrollable: false
@@ -93,9 +93,11 @@ lvgl:
               - label:
                   id: loading_status_text
                   text: "Waiting for data..."
+                  width: 100%
                   text_font: top_bar_room
                   text_color: 0xdadada
-                  long_mode: SCROLL_CIRCULAR
+                  text_align: center
+                  long_mode: WRAP
     - id: main_page
       bg_color: 0x000000
       scrollable: false
@@ -241,6 +243,8 @@ lvgl:
                         outline_color: 0x00ff00
                         border_width: 0
                         border_opa: 100%
+                        scrollable: false
+                        long_mode: CLIP
                         clickable: true
                         on_press:
                           then:
@@ -275,6 +279,8 @@ lvgl:
                         outline_color: 0x0000ff
                         border_width: 0
                         border_opa: 100%
+                        scrollable: false
+                        long_mode: CLIP
                         clickable: true
                         on_press:
                           then:
@@ -322,6 +328,8 @@ lvgl:
                         outline_color: 0x00ffff
                         border_width: 0
                         border_opa: 100%
+                        scrollable: false
+                        long_mode: CLIP
                         clickable: true
                         on_press:
                           then:
@@ -349,6 +357,8 @@ lvgl:
                         outline_color: 0xffff00
                         border_width: 0
                         border_opa: 100%
+                        scrollable: false
+                        long_mode: CLIP
                         clickable: true
                         on_press:
                           then:
