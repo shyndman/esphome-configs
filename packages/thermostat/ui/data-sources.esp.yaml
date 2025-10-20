@@ -214,6 +214,7 @@ binary_sensor:
   - platform: homeassistant
     id: computed_heat
     entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_heat
+    trigger_on_initial_state: true
     on_state:
       then:
         - lambda: |-
@@ -241,6 +242,7 @@ binary_sensor:
   - platform: homeassistant
     id: computed_ac
     entity_id: binary_sensor.theoretical_thermostat_ctrl_computed_a_c
+    trigger_on_initial_state: true
     on_state:
       then:
         - lambda: |-
