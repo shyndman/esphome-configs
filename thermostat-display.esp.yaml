@@ -11,7 +11,7 @@ packages:
   thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
 
 logger:
-  level: INFO
+  level: DEBUG
 
 esphome:
   on_boot:
