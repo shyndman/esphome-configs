@@ -24,6 +24,7 @@ script:
           red: 0%
           green: 100%
           blue: 0%
+          white: 0%
           brightness: 70%
           effect: "Pulse"
       - delay: 5s
