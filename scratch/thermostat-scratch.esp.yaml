@@ -16,17 +16,23 @@ binary_sensor:
     pin:
       number: 1
       mode: INPUT_PULLDOWN
-    name: "Binary Input 1"
-    id: binary_input_1
+    name: "Yellow"
+    id: yellow_input
   - platform: gpio
     pin:
       number: 2
       mode: INPUT_PULLDOWN
-    name: "Binary Input 2"
-    id: binary_input_2
+    name: "Green"
+    id: green_input
   - platform: gpio
     pin:
       number: 3
       mode: INPUT_PULLDOWN
-    name: "Binary Input 3"
-    id: binary_input_3
+    name: "White"
+    id: white_input
+
+switch:
+  - platform: gpio
+    pin: 7
+    name: "Green Output"
+    id: green_output
