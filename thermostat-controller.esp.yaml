@@ -159,27 +159,30 @@ sensor:
 text_sensor:
   - platform: template
     name: "BME68x IAQ Classification"
-    # TODO: This should handle the case where the IAQ sensor is unavailable
     lambda: |-
-      if ( int(id(iaq).state) <= 50) {
+      if (!id(iaq).has_state() || id(iaq).state != id(iaq).state) {
+        return {"Unavailable"};
+      }
+      const int iaq_value = static_cast<int>(id(iaq).state);
+      if (iaq_value <= 50) {
         return {"Excellent"};
       }
-      else if (int(id(iaq).state) >= 51 && int(id(iaq).state) <= 100) {
+      else if (iaq_value >= 51 && iaq_value <= 100) {
         return {"Good"};
       }
-      else if (int(id(iaq).state) >= 101 && int(id(iaq).state) <= 150) {
+      else if (iaq_value >= 101 && iaq_value <= 150) {
         return {"Lightly polluted"};
       }
-      else if (int(id(iaq).state) >= 151 && int(id(iaq).state) <= 200) {
+      else if (iaq_value >= 151 && iaq_value <= 200) {
         return {"Moderately polluted"};
       }
-      else if (int(id(iaq).state) >= 201 && int(id(iaq).state) <= 250) {
+      else if (iaq_value >= 201 && iaq_value <= 250) {
         return {"Heavily polluted"};
       }
-      else if (int(id(iaq).state) >= 251 && int(id(iaq).state) <= 350) {
+      else if (iaq_value >= 251 && iaq_value <= 350) {
         return {"Severely polluted"};
       }
-      else if (int(id(iaq).state) >= 351) {
+      else if (iaq_value >= 351) {
         return {"Extremely polluted"};
       }
       else {
