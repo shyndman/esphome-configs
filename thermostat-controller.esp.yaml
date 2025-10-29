@@ -315,11 +315,11 @@ light:
 
 output:
   - platform: gpio
+    pin: 1
     id: pin_ac
-    pin: 3
   - platform: gpio
     id: pin_heat
     pin: 2
   - platform: gpio
-    pin: 1
     id: pin_fan
+    pin: 3
