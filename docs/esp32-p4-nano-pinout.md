@@ -1,7 +1,7 @@
 # ESP32-P4-NANO Pinout Reference for ESPHome
 
-**Board:** Waveshare ESP32-P4-NANO  
-**Chip:** ESP32-P4NRW32  
+**Board:** Waveshare ESP32-P4-NANO
+**Chip:** ESP32-P4NRW32
 **Note:** This board uses the ESP32-P4 (dual-core RISC-V @ 400MHz) + ESP32-C6 (WiFi 6/BLE 5) co-processor
 
 ---
@@ -73,7 +73,7 @@ The ESP32-P4-NANO has a dedicated 2-lane MIPI DSI connector for displays.
 ```yaml
 display:
   - platform: mipi_dsi
-    model: JD9365  # For the 10.1" display
+    model: CUSTOM  # For the 10.1" display
     dimensions:
       width: 1280
       height: 800
@@ -175,7 +175,7 @@ output:
   - platform: gpio
     pin: GPIO53
     id: pa_ctrl
-    
+
 # Speaker output
 speaker:
   - platform: i2s_audio
@@ -364,7 +364,7 @@ slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
 **Strapping Pins (Boot Configuration):**
 - GPIO34 (MTMS) - Ethernet TXD0
-- GPIO35 (MTDI) - Ethernet TXD1  
+- GPIO35 (MTDI) - Ethernet TXD1
 - GPIO36 (MTCK) - Strapping only
 - GPIO37 (MTDO) - UART0_TXD
 - GPIO38 (U0TXD) - UART0_RXD
@@ -407,7 +407,7 @@ slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 - GPIO43 - CLK
 - GPIO44 - CMD
 
-**Touch Panel Support:** 
+**Touch Panel Support:**
 - GPIO2 (TOUCH_CHANNEL_0)
 - GPIO3 (TOUCH_CHANNEL_1)
 - GPIO4 (TOUCH_CHANNEL_2)
@@ -509,8 +509,8 @@ Here's a complete overview of all GPIO assignments on the ESP32-P4-NANO:
 
 ## Document Version
 
-**Document Version:** 2.0  
-**Last Updated:** October 2025  
+**Document Version:** 2.0
+**Last Updated:** October 2025
 **Changelog:**
 - v2.0: Added complete SD card pinout, corrected ESPHome support status, added comprehensive GPIO allocation table
 - v1.0: Initial release
@@ -548,6 +548,6 @@ ources
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** October 2025  
+**Document Version:** 1.0
+**Last Updated:** October 2025
 **Source:** Compiled from Waveshare wiki, ESP32-P4 datasheet, and community documentation
