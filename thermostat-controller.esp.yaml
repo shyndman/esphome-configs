@@ -276,7 +276,11 @@ binary_sensor:
     id: computed_fan
     publish_initial_state: true
     lambda: |-
-      return id(climate_override).state ? id(override_fan).state : id(requested_fan).state;
+      const bool override_active = id(climate_override).state;
+      const bool fan_request = override_active ? id(override_fan).state : id(requested_fan).state;
+      const bool heat_request = override_active ? id(override_heat).state : id(requested_heat).state;
+      const bool cool_request = override_active ? id(override_ac).state : id(requested_ac).state;
+      return fan_request || heat_request || cool_request;
     on_state:
       then:
         - logger.log:
