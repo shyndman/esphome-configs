@@ -1,0 +1,63 @@
+esphome:
+  name: esp32-p4-nano-hx8394
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+  on_boot:
+    priority: 800
+    then:
+      - lambda: |-
+          id(panel_pmic).write_byte(0x95, 0x11);
+          id(panel_pmic).write_byte(0x95, 0x17);
+          id(panel_pmic).write_byte(0x96, 0x00);
+      - delay: 100ms
+      - lambda: |-
+          id(panel_pmic).write_byte(0x96, 0xFF);
+      - delay: 1s
+
+esp32:
+  variant: ESP32P4
+  cpu_frequency: 360MHZ
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_SPIRAM_XIP_FROM_PSRAM: "y"
+      CONFIG_CACHE_L2_CACHE_256KB: "y"
+      CONFIG_CACHE_L2_CACHE_LINE_128B: "y"
+      CONFIG_COMPILER_OPTIMIZATION_PERF: "y"
+      COMPILER_OPTIMIZATION_SIZE: "y"
+      CONFIG_LWIP_MAX_SOCKETS: '16'
+
+psram:
+  speed: 200MHz
+
+esp_ldo:
+  - id: mipi_phy_ldo
+    channel: 3
+    voltage: 2.5V
+
+esp32_hosted:
+  variant: ESP32C6
+  reset_pin: 54
+  cmd_pin: 19
+  clk_pin: 18
+  d0_pin: 14
+  d1_pin: 15
+  d2_pin: 16
+  d3_pin: 17
+  active_high: true
+
+logger:
+  baud_rate: 115200
+  hardware_uart: UART0
+
+i2c:
+  - id: bus_i2c
+    sda: 7
+    scl: 8
+    frequency: 100kHz
+
+i2c_device:
+  - id: panel_pmic
+    i2c_id: bus_i2c
+    address: 0x45
