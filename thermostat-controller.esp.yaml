@@ -94,7 +94,7 @@ climate:
       max_humidity: 60%
     on_boot_restore_from: DEFAULT_PRESET
     default_preset: home
-    sensor: target_room_temperature
+    sensor: effective_room_temperature
     humidity_sensor: target_room_humidity
     heat_deadband: 0.3
     heat_overrun: ${thermostat_heat_overrun}
@@ -186,6 +186,7 @@ sensor:
   - platform: bme68x_bsec2
     temperature:
       name: "BME68x Temperature"
+      id: bme68x_temperature
     pressure:
       name: "BME68x Pressure"
     humidity:
@@ -197,6 +198,26 @@ sensor:
       name: "BME68x CO2 Equivalent"
     breath_voc_equivalent:
       name: "BME68x Breath VOC Equivalent"
+
+  - platform: template
+    name: Effective Room Temperature
+    id: effective_room_temperature
+    unit_of_measurement: "°C"
+    device_class: "temperature"
+    state_class: measurement
+    accuracy_decimals: 1
+    update_interval: 15s
+    lambda: |-
+      const bool ha_connected = esphome::api::global_api_server != nullptr &&
+                                esphome::api::global_api_server->is_connected();
+      if (ha_connected && id(target_room_temperature).has_state() &&
+          !isnan(id(target_room_temperature).state)) {
+        return id(target_room_temperature).state;
+      }
+      if (id(bme68x_temperature).has_state() && !isnan(id(bme68x_temperature).state)) {
+        return id(bme68x_temperature).state;
+      }
+      return NAN;
 
 
 text_sensor:
