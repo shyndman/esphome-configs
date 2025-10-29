@@ -29,6 +29,49 @@ script:
           effect: "Pulse"
       - delay: 5s
       - light.turn_off: notification_led
+  - id: update_notification_led
+    mode: restart
+    then:
+      - if:
+          condition:
+            binary_sensor.is_on: computed_fan
+          then:
+            - if:
+                condition:
+                  binary_sensor.is_on: computed_heat
+                then:
+                  - light.turn_on:
+                      id: notification_led
+                      effect: "Quick Pulse"
+                      red: 0%
+                      green: 0%
+                      blue: 0%
+                      white: 100%
+                      brightness: 75%
+                else:
+                  - if:
+                      condition:
+                        binary_sensor.is_on: computed_ac
+                      then:
+                        - light.turn_on:
+                            id: notification_led
+                            effect: "Quick Pulse"
+                            red: 100%
+                            green: 100%
+                            blue: 0%
+                            white: 0%
+                            brightness: 75%
+                      else:
+                        - light.turn_on:
+                            id: notification_led
+                            effect: "Quick Pulse"
+                            red: 0%
+                            green: 100%
+                            blue: 0%
+                            white: 0%
+                            brightness: 75%
+          else:
+            - light.turn_off: notification_led
 
 bme68x_bsec2_i2c:
   i2c_id: bus_i2c
