@@ -300,6 +300,7 @@ binary_sensor:
         - lambda: |-
             if (id(computed_ac).state) id(pin_ac).turn_on();
             else id(pin_ac).turn_off();
+        - script.execute: update_notification_led
   - platform: template
     name: Computed Heat
     id: computed_heat
@@ -314,6 +315,7 @@ binary_sensor:
         - lambda: |-
             if (id(computed_heat).state) id(pin_heat).turn_on();
             else id(pin_heat).turn_off();
+        - script.execute: update_notification_led
   - platform: template
     name: Computed Fan
     id: computed_fan
@@ -332,6 +334,7 @@ binary_sensor:
         - lambda: |-
             if (id(computed_fan).state) id(pin_fan).turn_on();
             else id(pin_fan).turn_off();
+        - script.execute: update_notification_led
 
 
 
@@ -358,6 +361,12 @@ light:
           update_interval: 0.5s
           min_brightness: 20%
           max_brightness: 50%
+      - pulse:
+          name: "Quick Pulse"
+          transition_length: 0.2s
+          update_interval: 0.2s
+          min_brightness: 30%
+          max_brightness: 90%
 
 
 output:
