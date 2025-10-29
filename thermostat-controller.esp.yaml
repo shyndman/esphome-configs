@@ -200,11 +200,23 @@ switch:
     id: override_ac
     optimistic: true
     restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - if:
+          condition:
+            switch.is_on: override_heat
+          then:
+            - switch.turn_off: override_heat
   - platform: template
     name: Heat Override
     id: override_heat
     optimistic: true
     restore_mode: ALWAYS_OFF
+    turn_on_action:
+      - if:
+          condition:
+            switch.is_on: override_ac
+          then:
+            - switch.turn_off: override_ac
   - platform: template
     name: Fan Override
     id: override_fan
