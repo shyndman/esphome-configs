@@ -5,7 +5,7 @@ esphome:
   name: $name
 
 logger:
-  level: DEBUG
+  level: INFO
 
 debug:
   update_interval: 5min
@@ -60,6 +60,9 @@ sensor:
     id: wifi_rssi
     update_interval: 120s
 
+select:
+  - platform: logger
+    name: "Log Level"
 
 text_sensor:
   - platform: wifi_info
