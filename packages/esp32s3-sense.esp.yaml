@@ -13,6 +13,65 @@ esphome:
       - -Iinclude
     board_build.f_flash: 80000000L
     board_build.flash_mode: dio
+  # includes:
+    # - include/esp32_camera_sensor_helpers.h
+  on_boot:
+    priority: -80
+    then:
+      - wait_until:
+          condition:
+            lambda: |-
+              auto *cam = id(espcam);
+              return cam != nullptr && cam->is_ready();
+      - lambda: |-
+          auto *cam = id(espcam);
+          if (id(camera_brightness).has_state()) {
+            cam->set_brightness((int) id(camera_brightness).state);
+          }
+          if (id(camera_contrast).has_state()) {
+            cam->set_contrast((int) id(camera_contrast).state);
+          }
+          if (id(camera_saturation).has_state()) {
+            cam->set_saturation((int) id(camera_saturation).state);
+          }
+          if (id(camera_ae_level).has_state()) {
+            cam->set_ae_level((int) id(camera_ae_level).state);
+          }
+          if (id(camera_jpeg_quality).has_state()) {
+            cam->set_jpeg_quality((int) id(camera_jpeg_quality).state);
+          }
+          if (id(camera_max_fps).has_state()) {
+            const float fps = id(camera_max_fps).state;
+            if (fps > 0.0f) {
+              const uint32_t interval = (uint32_t) (1000.0f / fps);
+              cam->set_max_update_interval(interval);
+            }
+          }
+          const bool aec2_state = id(camera_aec2).has_state() ? id(camera_aec2).state : true;
+          cam->set_aec2(aec2_state);
+          cam->update_camera_parameters();
+          if (id(camera_jpeg_quality).has_state()) {
+            espcam_helpers::set_quality((int) id(camera_jpeg_quality).state);
+          }
+          if (id(camera_sharpness).has_state()) {
+            espcam_helpers::set_sharpness((int) id(camera_sharpness).state);
+          }
+          const bool denoise_state = id(camera_denoise).has_state() ? id(camera_denoise).state : false;
+          espcam_helpers::set_denoise(denoise_state);
+          const bool raw_gma_state = id(camera_raw_gma).has_state() ? id(camera_raw_gma).state : false;
+          espcam_helpers::set_raw_gma(raw_gma_state);
+          const bool dcw_state = id(camera_dcw).has_state() ? id(camera_dcw).state : false;
+          espcam_helpers::set_dcw(dcw_state);
+          const bool awb_gain_state = id(camera_awb_gain).has_state() ? id(camera_awb_gain).state : false;
+          espcam_helpers::set_awb_gain(awb_gain_state);
+
+light:
+  - platform: status_led
+    id: status_light
+    name: "Status LED"
+    pin:
+      number: 21
+      inverted: true
 
 esp32:
   board: esp32-s3-devkitc-1
