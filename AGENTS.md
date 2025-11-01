@@ -1,5 +1,7 @@
 # Repository Guidelines
 
+> Heads-up: if you notice in-progress edits when you hop in, it usually means I'm working on the repo at the same time—feel free to coordinate rather than undoing the changes.
+
 ## Project Structure & Module Organization
 - Root `*.esp.yaml` files define deployed devices; include `packages/device-base.esp.yaml` plus hardware modules such as `packages/esp32-base.esp.yaml` or `packages/mm-wave-presence-compact.esp.yaml`.
 - Shared building blocks live in `packages/`; update `packages/device-ip-map.esp.yaml` when reserving static addresses, and keep lighting effects under `packages/light-effects/`.
