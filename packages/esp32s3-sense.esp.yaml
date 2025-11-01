@@ -8,7 +8,9 @@ substitutions:
 
 esphome:
   platformio_options:
-    build_flags: -DBOARD_HAS_PSRAM
+    build_flags:
+      - -DBOARD_HAS_PSRAM
+      - -Iinclude
     board_build.f_flash: 80000000L
     board_build.flash_mode: dio
 
