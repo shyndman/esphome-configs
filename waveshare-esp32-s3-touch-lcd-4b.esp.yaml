@@ -1,0 +1,324 @@
+# ESPHome Configuration for Waveshare ESP32-S3-Touch-LCD-4B
+# Board: ESP32-S3 with 480x480 ST7701S RGB Display, GT911 Touch, ES8311/ES7210 Audio
+# Hardware Version: 1.1.1
+# Generated from BSP: waveshare__esp32_s3_touch_lcd_4b
+
+substitutions:
+  device_name: "waveshare-lcd-4b"
+  friendly_name: "Waveshare LCD 4B"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.mcu: esp32s3
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+    version: recommended
+  variant: esp32s3
+
+# Enable PSRAM (required for display buffer)
+psram:
+  mode: octal
+  speed: 80MHz
+
+# WiFi Configuration
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+captive_portal:
+
+# Enable logging
+logger:
+  level: DEBUG
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+# Web server (optional, can be disabled for production)
+web_server:
+  port: 80
+
+##############################################################################
+# I2C Bus Configuration
+# Shared by: TCA9554 IO Expander, GT911 Touch, ES8311 DAC, ES7210 ADC
+##############################################################################
+i2c:
+  - id: i2c_bus
+    sda: GPIO47
+    scl: GPIO48
+    scan: true
+    frequency: 400kHz
+
+##############################################################################
+# TCA9554 IO Expander
+# Controls: LCD SPI init pins, Display power/reset, Audio power amplifier
+##############################################################################
+pca9554:
+  - id: io_expander
+    address: 0x20
+    i2c_id: i2c_bus
+
+##############################################################################
+# I2S Audio Configuration
+# Shared by: ES8311 (speaker), ES7210 (microphone)
+##############################################################################
+i2s_audio:
+  - id: i2s_bus
+    i2s_lrclk_pin: GPIO7   # LCLK / WS
+    i2s_bclk_pin: GPIO16   # SCLK / BCLK
+    i2s_mclk_pin: GPIO5    # MCLK
+
+##############################################################################
+# ES8311 Audio DAC (Speaker Output)
+##############################################################################
+audio_dac:
+  - platform: es8311
+    id: es8311_codec
+    address: 0x18
+    i2c_id: i2c_bus
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    use_mclk: true
+    use_microphone: false
+
+##############################################################################
+# ES7210 Audio ADC (Microphone Input)
+##############################################################################
+audio_adc:
+  - platform: es7210
+    id: es7210_adc
+    address: 0x40
+    i2c_id: i2c_bus
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    mic_gain: 24dB
+
+##############################################################################
+# Speaker Configuration
+##############################################################################
+speaker:
+  - platform: i2s_audio
+    id: external_speaker
+    i2s_audio_id: i2s_bus
+    dac_type: external
+    i2s_dout_pin: GPIO6
+    channel: mono
+    sample_rate: 16000
+    bits_per_sample: 16bit
+
+##############################################################################
+# Microphone Configuration
+##############################################################################
+microphone:
+  - platform: i2s_audio
+    id: external_microphone
+    i2s_audio_id: i2s_bus
+    adc_type: external
+    i2s_din_pin: GPIO15
+    pdm: false
+    sample_rate: 16000
+    bits_per_sample: 16bit
+
+##############################################################################
+# Audio Power Amplifier Control
+# Connected to IO Expander Pin 3
+##############################################################################
+switch:
+  - platform: gpio
+    name: "Audio Power Amplifier"
+    id: power_amp_enable
+    pin:
+      pca9554: io_expander
+      number: 3
+      mode: OUTPUT
+      inverted: false
+    restore_mode: RESTORE_DEFAULT_OFF
+    internal: false
+
+##############################################################################
+# Display Backlight (PWM via LEDC)
+# Note: Hardware has inverted logic (100% duty = off, 0% duty = on)
+##############################################################################
+output:
+  - platform: ledc
+    pin: GPIO4
+    id: backlight_pwm
+    frequency: 5000Hz
+    inverted: true  # Invert to match hardware (high = bright)
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Display Backlight"
+    id: display_backlight
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: 250ms
+
+##############################################################################
+# ST7701S Display via MIPI RGB Interface
+# Resolution: 480x480, 16-bit RGB565
+##############################################################################
+display:
+  - platform: mipi_rgb
+    id: main_display
+    model: custom
+    auto_clear_enabled: false
+    update_interval: never
+
+    # Display dimensions
+    dimensions:
+      width: 480
+      height: 480
+    rotation: 0
+
+    # Color configuration
+    color_order: RGB
+    invert_colors: false
+
+    # Data pins (16-bit RGB565)
+    data_pins:
+      red:
+        - GPIO14    # R4 (MSB)
+        - GPIO13    # R3
+        - GPIO12    # R2
+        - GPIO11    # R1
+        - GPIO10    # R0 (LSB)
+      green:
+        - GPIO45    # G5 (MSB)
+        - GPIO8     # G4
+        - GPIO18    # G3
+        - GPIO21    # G2
+        - GPIO1     # G1
+        - GPIO2     # G0 (LSB)
+      blue:
+        - GPIO39    # B4 (MSB)
+        - GPIO38    # B3
+        - GPIO42    # B2
+        - GPIO41    # B1
+        - GPIO40    # B0 (LSB)
+
+    # Control pins
+    de_pin: GPIO17
+    pclk_pin: GPIO9
+    hsync_pin: GPIO46
+    vsync_pin: GPIO3
+
+    # Pixel clock frequency
+    pclk_frequency: 16MHz
+    pclk_inverted: false
+
+    # Timing parameters (from ST7701_480_480_PANEL_60HZ_RGB_TIMING)
+    hsync_pulse_width: 10
+    hsync_front_porch: 50
+    hsync_back_porch: 50
+
+    vsync_pulse_width: 10
+    vsync_front_porch: 20
+    vsync_back_porch: 20
+
+    # SPI interface for initialization (via IO expander)
+    # 3-wire SPI: CS, SCL, SDA all on IO expander
+    cs_pin:
+      pca9554: io_expander
+      number: 0
+      mode: OUTPUT
+    dc_pin:
+      pca9554: io_expander
+      number: 2
+      mode: OUTPUT
+    reset_pin:
+      pca9554: io_expander
+      number: 5
+      mode: OUTPUT
+
+    # SPI configuration
+    spi_mode: MODE3
+    data_rate: 1MHz
+
+    # Initialization sequence from BSP
+    # Translated from lcd_init_cmds[] in esp32_s3_touch_lcd_4b.c
+    init_sequence:
+      # Sleep Out (handled automatically by MIPI component)
+      # Command Bank 0
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x10]
+      - [0xC0, 0x3B, 0x00]
+      - [0xC1, 0x0D, 0x02]
+      - [0xC2, 0x21, 0x08]
+      - [0xCD, 0x08]
+      # Gamma settings
+      - [0xB0, 0x00, 0x11, 0x18, 0x0E, 0x11, 0x06, 0x07, 0x08, 0x07, 0x22, 0x04, 0x12, 0x0F, 0xAA, 0x31, 0x18]
+      - [0xB1, 0x00, 0x11, 0x19, 0x0E, 0x12, 0x07, 0x08, 0x08, 0x08, 0x22, 0x04, 0x11, 0x11, 0xA9, 0x32, 0x18]
+      # Command Bank 1
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x11]
+      - [0xB0, 0x60]
+      - [0xB1, 0x30]
+      - [0xB2, 0x87]
+      - [0xB3, 0x80]
+      - [0xB5, 0x49]
+      - [0xB7, 0x85]
+      - [0xB8, 0x21]
+      - [0xC1, 0x78]
+      - [0xC2, 0x78]
+      - delay 20ms
+      # Gate control
+      - [0xE0, 0x00, 0x1B, 0x02]
+      - [0xE1, 0x08, 0xA0, 0x00, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x00, 0x44, 0x44]
+      - [0xE2, 0x11, 0x11, 0x44, 0x44, 0xED, 0xA0, 0x00, 0x00, 0xEC, 0xA0, 0x00, 0x00]
+      - [0xE3, 0x00, 0x00, 0x11, 0x11]
+      - [0xE4, 0x44, 0x44]
+      - [0xE5, 0x0A, 0xE9, 0xD8, 0xA0, 0x0C, 0xEB, 0xD8, 0xA0, 0x0E, 0xED, 0xD8, 0xA0, 0x10, 0xEF, 0xD8, 0xA0]
+      - [0xE6, 0x00, 0x00, 0x11, 0x11]
+      - [0xE7, 0x44, 0x44]
+      - [0xE8, 0x09, 0xE8, 0xD8, 0xA0, 0x0B, 0xEA, 0xD8, 0xA0, 0x0D, 0xEC, 0xD8, 0xA0, 0x0F, 0xEE, 0xD8, 0xA0]
+      - [0xEB, 0x02, 0x00, 0xE4, 0xE4, 0x88, 0x00, 0x40]
+      - [0xEC, 0x3C, 0x00]
+      - [0xED, 0xAB, 0x89, 0x76, 0x54, 0x02, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x20, 0x45, 0x67, 0x98, 0xBA]
+      # Back to Bank 0
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
+      # Set orientation and pixel format
+      - [0x36, 0x00]  # Memory Data Access Control
+      - [0x3A, 0x66]  # Interface Pixel Format (18-bit/pixel)
+      # Inversion On
+      - [0x21]
+      - delay 120ms
+      # Display On (handled automatically by MIPI component)
+
+##############################################################################
+# GT911 Touchscreen
+##############################################################################
+touchscreen:
+  - platform: gt911
+    id: touch_controller
+    i2c_id: i2c_bus
+    display: main_display
+
+    # No dedicated interrupt/reset pins on this board variant
+    # interrupt_pin: not connected
+    # reset_pin: not connected
+
+    # Touch calibration (may need adjustment)
+    transform:
+      swap_xy: false
+      mirror_x: false
+      mirror_y: false
+
+##############################################################################
+# Example: Simple text display for testing
+##############################################################################
+# Uncomment to test display output:
+# font:
+#   - file: "fonts/default.ttf"
+#     id: default_font
+#     size: 24
+#
+# The display lambda would go in the display: section above:
+# lambda: |-
+#   it.print(240, 240, id(default_font), COLOR_ON, TextAlign::CENTER, "Hello World!");
