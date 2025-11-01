@@ -1,0 +1,37 @@
+substitutions:
+  friendly_name: Sense UDP Audio Test
+  name: senseudpaudio
+  udp_audio_host: 192.168.86.38
+  udp_audio_port: "7000"
+  ip_senseudpaudio: 192.168.1.99
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  sense: !include packages/esp32s3-sense.esp.yaml
+
+esphome:
+  on_boot: !remove
+
+wifi:
+  ssid: "test"
+  password: "testpass"
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+external_components:
+  - source: github://shyndman/personal-esphome-components
+    components: [udp_audio_streamer]
+    refresh: 1d
+
+udp_audio_streamer:
+  host: ${udp_audio_host}
+  port: ${udp_audio_port}
+  chunk_duration: 80ms
+  buffer_duration: 1280ms
+  microphone:
+    microphone: transcription_mic
+    bits_per_sample: 16
+    channels: 0
