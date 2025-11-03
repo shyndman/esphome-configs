@@ -367,7 +367,7 @@ lvgl:
             id: temperature_track
             x: 0
             y: !lambda return id(track_y_position);
-            width: 480
+            width: 100%
             height: !lambda return id(slider_track_height);
             bg_color: 0xe1752e
             border_width: 0
@@ -379,7 +379,7 @@ lvgl:
         #     id: slider_bound_top
         #     x: 0
         #     y: !lambda return thermostat::slider::track_min_y();
-        #     width: 480
+        #     width: 100%
         #     height: 1
         #     bg_color: 0xff0000
         #     bg_opa: 80%
@@ -389,7 +389,7 @@ lvgl:
         #     id: slider_bound_bottom
         #     x: 0
         #     y: !lambda return thermostat::slider::track_max_y();
-        #     width: 480
+        #     width: 100%
         #     height: 1
         #     bg_color: 0x00ff00
         #     bg_opa: 80%
@@ -398,9 +398,9 @@ lvgl:
         - obj:
             id: track_touch_zone
             x: 0
-            y: 40
-            width: 480
-            height: 440
+            y: 120
+            width: 100%
+            height: 1160
             bg_opa: 0
             border_width: 0
             clickable: true
@@ -423,9 +423,9 @@ lvgl:
         - obj:
             id: action_bar
             x: 0
-            y: 390
+            y: 1120
             width: 100%
-            height: 70
+            height: 96
             bg_opa: 0
             border_width: 0
             scrollable: false

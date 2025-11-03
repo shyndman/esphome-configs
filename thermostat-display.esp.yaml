@@ -1,21 +1,24 @@
 substitutions:
   friendly_name: Theoretical Thermostat Display
   name: theoretical_thermostat_display
+  thermostat_display_id: hx8394_panel
+  thermostat_touchscreen_id: hx8394_touch
 
-  thermostat_display_id: rgb_display
-  thermostat_touchscreen_id: rgb_display_touchscreen
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
-  t-panel-s3: !include packages/t-panel-s3.esp.yaml
-  thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
-
-logger:
-  level: DEBUG
+  p4-nano: !include packages/esp32-p4-nano.esp.yaml
+  display: !include packages/display-hx8394.esp.yaml
+  thermostat-ui: !include packages/thermostat/display-ui.esp.yaml
 
 esphome:
   on_boot:
-    then:
-      - light.turn_on:
-          id: display_backlight
-          brightness: 90%
+    - priority: 700
+      then:
+        - script.execute: enable_mipi_phy
+    - priority: 800
+      then:
+        - light.turn_on: display_backlight
+
+logger:
+  level: DEBUG

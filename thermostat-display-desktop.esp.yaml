@@ -6,10 +6,6 @@ substitutions:
   thermostat_touchscreen_id: desktop_touchscreen
   thermostat_ui_desktop_timeout_enabled: 'true'
   thermostat_ui_desktop_timeout_duration: '4s'
-  thermostat_ui_antiburn_enabled: 'false'
-  thermostat_ui_antiburn_internal: 'true'
-  thermostat_ui_has_backlight_light: 'false'
-  thermostat_ui_time_id: sntp_time
   thermostat_ui_startup_page: loading_page
 
 packages:
@@ -87,8 +83,3 @@ touchscreen:
                   format: "[idle] LVGL resuming"
               - lvgl.resume:
               - lvgl.widget.redraw:
-        - if:
-            condition:
-              lambda: 'return id(switch_antiburn).state;'
-            then:
-              - switch.turn_off: switch_antiburn

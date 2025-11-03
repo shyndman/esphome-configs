@@ -21,6 +21,7 @@ esphome:
   on_boot:
     - priority: -100.0
       then:
+        - lvgl.page.show: ${thermostat_ui_startup_page}
         - script.execute: run_desktop_loading_timeout
         - script.execute: sync_active_setpoint_visuals
 
@@ -39,7 +40,7 @@ globals:
     initial_value: '21.0'
   - id: track_y_position
     type: int
-    initial_value: '255'
+    initial_value: '680'
   - id: active_setpoint_target
     type: int
     initial_value: '${thermostat_ui_target_heating}'
@@ -209,11 +210,67 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return id(fan_is_running) && !id(display_is_paused);'
+            lambda: 'return id(fan_is_running);'
           then:
             - script.execute: start_fan_animation
           else:
             - script.execute: stop_fan_animation
+  - id: debug_force_main_page
+    mode: single
+    then:
+      - lvgl.page.show: main_page
+      - light.turn_on: display_backlight
+      - script.execute: debug_dump_ui_state
+  - id: debug_dump_ui_state
+    mode: single
+    then:
+      - lambda: |-
+          auto *disp = lv_disp_get_default();
+          const uint32_t inactive_ms = lv_disp_get_inactive_time(disp);
+          ESP_LOGI("ui-debug", "inactive_ms=%lu ui_ready=%d load_timeout_triggered=%d",
+                   static_cast<unsigned long>(inactive_ms),
+                   id(ui_ready),
+                   id(load_timeout_triggered));
+          ESP_LOGI("ui-debug", "data readiness: weather_cond=%d weather_temp=%d room_name=%d room_temp=%d target_high=%d target_low=%d fan_mode=%d hvac_status=%d",
+                   id(data_weather_condition_ready),
+                   id(data_weather_temperature_ready),
+                   id(data_room_name_ready),
+                   id(data_room_temperature_ready),
+                   id(data_target_high_ready),
+                   id(data_target_low_ready),
+                   id(data_fan_mode_ready),
+                   id(data_hvac_status_ready));
+          lv_obj_t *active = lv_disp_get_scr_act(disp);
+          ESP_LOGI("ui-debug", "active_screen=%p", static_cast<void *>(active));
+          auto log_obj = [](const char *name, lv_obj_t *obj) {
+            if (!obj) {
+              ESP_LOGW("ui-debug", "%s missing", name);
+              return;
+            }
+            int16_t x = lv_obj_get_x(obj);
+            int16_t y = lv_obj_get_y(obj);
+            lv_coord_t w = lv_obj_get_width(obj);
+            lv_coord_t h = lv_obj_get_height(obj);
+            uint8_t opa = lv_obj_get_style_opa(obj, LV_PART_MAIN);
+            lv_color_t bg = lv_obj_get_style_bg_color(obj, LV_PART_MAIN);
+            uint32_t bg_hex = lv_color_to32(bg);
+            ESP_LOGI("ui-debug", "%s: pos=(%d,%d) size=%dx%d opa=%u bg=0x%06X",
+                     name, x, y, w, h, opa, bg_hex & 0xFFFFFF);
+          };
+          log_obj("temperature_track", id(temperature_track));
+          log_obj("setpoint_group", id(setpoint_group));
+          log_obj("action_bar", id(action_bar));
+          log_obj("weather_group", id(weather_group));
+          log_obj("hvac_status_group", id(hvac_status_group));
+          log_obj("room_group", id(room_group));
+          const char *cool_text = id(cooling_setpoint) ? lv_label_get_text(id(cooling_setpoint)) : "<null>";
+          const char *heat_text = id(heating_setpoint) ? lv_label_get_text(id(heating_setpoint)) : "<null>";
+          ESP_LOGI("ui-debug", "setpoints cooling=%s heating=%s track_y=%d track_height=%d label_y=%d",
+                   cool_text,
+                   heat_text,
+                   id(track_y_position),
+                   id(slider_track_height),
+                   id(slider_label_y));
   - id: show_bird_alert
     mode: single
     then:

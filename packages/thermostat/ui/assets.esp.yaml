@@ -3,32 +3,32 @@ image:
     id: loading_connection
     type: grayscale
     transparency: alpha_channel
-    resize: 128x128
+    resize: 192x192
   - file: mdi:home
     id: loading_home
     type: grayscale
     transparency: alpha_channel
-    resize: 128x128
+    resize: 192x192
   - file: mdi:power
     id: power
     type: grayscale
     transparency: alpha_channel
-    resize: 36x36
+    resize: 54x54
   - file: mdi:snowflake
     id: snowflake
     type: grayscale
     transparency: alpha_channel
-    resize: 36x36
+    resize: 54x54
   - file: mdi:fire
     id: fire
     type: grayscale
     transparency: alpha_channel
-    resize: 36x36
+    resize: 54x54
   - file: mdi:fan
     id: fan
     type: grayscale
     transparency: alpha_channel
-    resize: 36x36
+    resize: 54x54
   - file: assets/spinning-fan-animation/fan-0.png
     id: fan_frame_0
     type: RGB565
@@ -157,122 +157,122 @@ image:
     id: clear_night
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-cloudy
     id: cloudy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-fog
     id: fog
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-hail
     id: hail
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-lightning
     id: lightning
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-lightning-rainy
     id: lightning_rainy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-partly-cloudy
     id: partlycloudy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-pouring
     id: pouring
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-rainy
     id: rainy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-snowy
     id: snowy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-snowy-rainy
     id: snowy_rainy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-sunny
     id: sunny
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-windy
     id: windy
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:weather-windy-variant
     id: windy_variant
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:home
     id: room_default
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:sofa
     id: room_living
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:bed
     id: room_bedroom
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:desk
     id: room_office
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
   - file: mdi:door
     id: room_hallway
     type: grayscale
     transparency: alpha_channel
-    resize: 28x28
+    resize: 42x42
 
 font:
   - file: assets/fonts/figtree-tabular-numerals-semibold.otf
     id: setpoint_primary_font
-    size: 72
-    bpp: 4
+    size: 108
+    bpp: 8
     glyphs: [
       0123456789,°.
     ]
   - file: assets/fonts/figtree-tabular-numerals-semibold.otf
     id: setpoint_secondary_font
-    size: 30
-    bpp: 4
+    size: 45
+    bpp: 8
     glyphs: [
       0123456789,.
     ]
   - file: gfonts://Figtree@500
     id: top_bar_weather
-    size: 25
-    bpp: 4
+    size: 38
+    bpp: 8
   - file: gfonts://Figtree@300
     id: top_bar_room
-    size: 23
+    size: 35
     bpp: 8
   - file: gfonts://Figtree@500
     id: top_bar_temp
-    size: 23
-    bpp: 4
+    size: 35
+    bpp: 8
