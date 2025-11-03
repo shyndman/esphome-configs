@@ -1,85 +1,57 @@
 substitutions:
   friendly_name: Theoretical Thermostat Climate Controller
   name: theoretical_thermostat_ctrl
-  mm_wave_rx_pin: "5"
-  mm_wave_tx_pin: "6"
+  udp_audio_host: 192.168.86.38
+  udp_audio_port: '7000'
+  hvac_min_off_time: 2min
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   sense: !include packages/esp32s3-sense.esp.yaml
   thermostat-shared: !include packages/thermostat/defaults.esp.yaml
-  mm-wave: !include packages/mm-wave-presence-compact.esp.yaml
+  # The thermostat's climate sensor, which has the ability to "smell". While it
+  # detects air quality and bad breath by default, you can train its little
+  # on-board model to smell
+  bme68x: !include packages/bme68x.esp.yaml
+
+external_components:
+  # Audio is streamed from the thermostat's mic to a local transcription server.
+  - source: github://shyndman/personal-esphome-components/
+    components: [udp_audio_streamer]
+    refresh: 1s
 
 esphome:
   on_boot:
-    - priority: -100
-      then:
-        - script.execute: boot_notification
-
-script:
-  - id: boot_notification
+    priority: -100
     then:
-      - light.turn_on:
-          id: notification_led
-          red: 0%
-          green: 100%
-          blue: 0%
-          white: 0%
-          brightness: 70%
-          effect: "Pulse"
-      - delay: 5s
-      - light.turn_off: notification_led
-  - id: update_notification_led
-    mode: restart
-    then:
-      - if:
-          condition:
-            binary_sensor.is_on: computed_fan
-          then:
-            - if:
-                condition:
-                  binary_sensor.is_on: computed_heat
-                then:
-                  - light.turn_on:
-                      id: notification_led
-                      effect: "Quick Pulse"
-                      red: 0%
-                      green: 0%
-                      blue: 0%
-                      white: 100%
-                      brightness: 75%
-                else:
-                  - if:
-                      condition:
-                        binary_sensor.is_on: computed_ac
-                      then:
-                        - light.turn_on:
-                            id: notification_led
-                            effect: "Quick Pulse"
-                            red: 100%
-                            green: 100%
-                            blue: 0%
-                            white: 0%
-                            brightness: 75%
-                      else:
-                        - light.turn_on:
-                            id: notification_led
-                            effect: "Quick Pulse"
-                            red: 0%
-                            green: 100%
-                            blue: 0%
-                            white: 0%
-                            brightness: 75%
-          else:
-            - light.turn_off: notification_led
+      - script.execute: update_hvac_action_led
 
-bme68x_bsec2_i2c:
-  i2c_id: bus_i2c
-  address: 0x77
-  model: bme688
-  operating_age: 28d
-  sample_rate: LP
-  supply_voltage: 3.3V
+globals:
+  # The HVAC mode currently being displayed through some RGBW LEDs
+  - id: displayed_hvac_mode
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+logger:
+  level: DEBUG
+  initial_level: INFO
+  logs:
+    esp32_camera_web_server: INFO
+    esp32_camera: INFO
+    light: WARN
+    sensor: INFO
+    switch: DEBUG
+
+i2c:
+  # We killed a couple pins on this Sense board by inserting it reversed into a
+  # socket, so we adapt
+  - id: !remove bus_i2c
+  - id: bus_i2c
+    sda: 43
+    scl: 44
+    scan: true
+    frequency: 400kHz
 
 climate:
   - platform: thermostat
@@ -92,9 +64,11 @@ climate:
         target_temperature: ${thermostat_temp_step}
         current_temperature: 0.1
       max_humidity: 60%
-    on_boot_restore_from: DEFAULT_PRESET
+    on_boot_restore_from: memory
     default_preset: home
-    sensor: effective_room_temperature
+    # This sensor falls back on the thermostat's internal thermometer if the
+    # Home Assistant room temperature sensor is unavailable.
+    sensor: effective_target_room_temperature
     humidity_sensor: target_room_humidity
     heat_deadband: 0.3
     heat_overrun: ${thermostat_heat_overrun}
@@ -127,6 +101,8 @@ climate:
       then:
         - lambda: |-
             id(requested_ac).turn_on();
+
+    # Fan actions
     fan_only_action:
       then:
         - switch.turn_on: requested_fan
@@ -161,6 +137,8 @@ climate:
         default_target_temperature_high: 23
         mode: HEAT_COOL
         fan_mode: AUTO
+      # What's interesting about away is that it's driven by an automation based
+      # on whether any of us are home, including Henry the dog ()
       - name: away
         default_target_temperature_low: 16
         default_target_temperature_high: 30
@@ -168,9 +146,6 @@ climate:
         fan_mode: AUTO
 
 sensor:
-  - id: !extend esp_internal_temp
-    update_interval: 60s
-
   # Room
   - platform: homeassistant
     name: Target Room Temperature
@@ -182,31 +157,15 @@ sensor:
     id: target_room_humidity
     entity_id: sensor.thermostat_target_room_humidity
 
-  # Air quality, temperature and humidity
-  - platform: bme68x_bsec2
-    temperature:
-      name: "BME68x Temperature"
-      id: bme68x_temperature
-    pressure:
-      name: "BME68x Pressure"
-    humidity:
-      name: "BME68x Humidity"
-    iaq:
-      name: "BME68x IAQ"
-      id: iaq
-    co2_equivalent:
-      name: "BME68x CO2 Equivalent"
-    breath_voc_equivalent:
-      name: "BME68x Breath VOC Equivalent"
-
   - platform: template
     name: Effective Room Temperature
-    id: effective_room_temperature
-    unit_of_measurement: "°C"
-    device_class: "temperature"
+    id: effective_target_room_temperature
+    unit_of_measurement: '°C'
+    device_class: 'temperature'
     state_class: measurement
     accuracy_decimals: 1
-    update_interval: 15s
+    update_interval: 30s
+    internal: True
     lambda: |-
       const bool ha_connected = esphome::api::global_api_server != nullptr &&
                                 esphome::api::global_api_server->is_connected();
@@ -219,41 +178,11 @@ sensor:
       }
       return NAN;
 
-
-text_sensor:
-  - platform: template
-    name: "BME68x IAQ Classification"
-    lambda: |-
-      if (!id(iaq).has_state() || id(iaq).state != id(iaq).state) {
-        return {"Unavailable"};
-      }
-      const int iaq_value = static_cast<int>(id(iaq).state);
-      if (iaq_value <= 50) {
-        return {"Excellent"};
-      }
-      else if (iaq_value >= 51 && iaq_value <= 100) {
-        return {"Good"};
-      }
-      else if (iaq_value >= 101 && iaq_value <= 150) {
-        return {"Lightly polluted"};
-      }
-      else if (iaq_value >= 151 && iaq_value <= 200) {
-        return {"Moderately polluted"};
-      }
-      else if (iaq_value >= 201 && iaq_value <= 250) {
-        return {"Heavily polluted"};
-      }
-      else if (iaq_value >= 251 && iaq_value <= 350) {
-        return {"Severely polluted"};
-      }
-      else if (iaq_value >= 351) {
-        return {"Extremely polluted"};
-      }
-      else {
-        return {"error"};
-      }
-
 switch:
+  # The override switches allow manual control of the HVAC system. When
+  # climate_override has been switched on, the HVAC system will always mirror
+  # the state of these switches, regardless of what the climate entity is
+  # requesting.
   - platform: template
     name: Climate Override
     id: climate_override
@@ -286,6 +215,10 @@ switch:
     id: override_fan
     optimistic: true
     restore_mode: ALWAYS_OFF
+
+  # These switches indicate that the climate entity (the thermostat as shown in
+  # user interfaces and controlled by automations), is requesting that the fan,
+  # heating, or cooling be turned on.
   - platform: template
     name: A/C Requested
     id: requested_ac
@@ -305,98 +238,135 @@ switch:
     optimistic: true
     restore_mode: ALWAYS_OFF
 
+  # These three are responsible for controlling the actual GPIO pins that signal
+  # the furnace, A/C unit, and fan. Note the interlock to prevent the simultaneous
+  # activation of heating and cooling. Having spent some time with this system,
+  # which I imagine is pretty ordinary as far as they go, I have come to respect
+  # its designers' commitment to safety and handling of exceptional states. But why
+  # tempt fate?
+  - platform: gpio
+    id: pin_ac
+    name: A/C Relay Switch
+    internal: True
+    pin: 1
+    interlock: &hvac_interlock_group [pin_ac, pin_heat]
+    interlock_wait_time: ${hvac_min_off_time}
+  - platform: gpio
+    id: pin_heat
+    name: Heat Relay Switch
+    internal: True
+    pin: 5
+    interlock: *hvac_interlock_group
+    interlock_wait_time: ${hvac_min_off_time}
+  - platform: gpio
+    id: pin_fan
+    name: Fan Relay Switch
+    internal: True
+    pin: 3
 
 binary_sensor:
+  # The computed sensors are reevaluated on every iteration of esphome's main
+  # loop. They are used to determine the actual state of the HVAC control pins,
+  # based on the requested states and any overrides that may be in effect.
   - platform: template
     name: Computed A/C
     id: computed_ac
-    publish_initial_state: true
+    trigger_on_initial_state: true
     lambda: |-
       return id(climate_override).state ? id(override_ac).state : id(requested_ac).state;
     on_state:
       then:
         - logger.log:
-            format: "Setting AC Pin to %d"
+            format: 'Setting AC Pin to %d'
             args: ['id(computed_ac).state']
         - lambda: |-
             if (id(computed_ac).state) id(pin_ac).turn_on();
             else id(pin_ac).turn_off();
-        - script.execute: update_notification_led
+        - script.execute: update_hvac_action_led
   - platform: template
     name: Computed Heat
     id: computed_heat
-    publish_initial_state: true
+    trigger_on_initial_state: true
     lambda: |-
       return id(climate_override).state ? id(override_heat).state : id(requested_heat).state;
     on_state:
       then:
         - logger.log:
-            format: "Setting Heat Pin to %d"
+            format: 'Setting Heat Pin to %d'
             args: ['id(computed_heat).state']
         - lambda: |-
             if (id(computed_heat).state) id(pin_heat).turn_on();
             else id(pin_heat).turn_off();
-        - script.execute: update_notification_led
+        - script.execute: update_hvac_action_led
   - platform: template
     name: Computed Fan
     id: computed_fan
-    publish_initial_state: true
+    trigger_on_initial_state: true
     lambda: |-
       const bool override_active = id(climate_override).state;
       const bool fan_request = override_active ? id(override_fan).state : id(requested_fan).state;
-      const bool heat_request = override_active ? id(override_heat).state : id(requested_heat).state;
-      const bool cool_request = override_active ? id(override_ac).state : id(requested_ac).state;
+      const bool heat_request = id(computed_heat).state;
+      const bool cool_request = id(computed_ac).state;
       return fan_request || heat_request || cool_request;
     on_state:
       then:
         - logger.log:
-            format: "Setting Fan Pin to %d"
+            format: 'Setting Fan Pin to %d'
             args: ['id(computed_fan).state']
         - lambda: |-
             if (id(computed_fan).state) id(pin_fan).turn_on();
             else id(pin_fan).turn_off();
-        - script.execute: update_notification_led
-
-
-
+        - script.execute: update_hvac_action_led
 light:
-  - platform: status_led
-    id: status_light
-    name: "Status LED"
-    pin:
-      number: 21
-      inverted: true
   - platform: esp32_rmt_led_strip
-    name: "Notification LED"
-    id: notification_led
-    pin: 44
-    num_leds: 2
+    name: 'HVAC Action LED'
+    id: hvac_action_led
+    pin: 4
+    num_leds: 1
     chipset: ws2812
     rgb_order: GRB
     is_rgbw: true
     restore_mode: ALWAYS_ON
     effects:
-      - pulse:
-          name: "Pulse"
-          transition_length: 0.5s
-          update_interval: 0.5s
-          min_brightness: 20%
-          max_brightness: 50%
-      - pulse:
-          name: "Quick Pulse"
-          transition_length: 0.2s
-          update_interval: 0.2s
-          min_brightness: 30%
-          max_brightness: 90%
+      - flicker:
+          name: 'spooky'
+          alpha: 92%
+          intensity: 9%
 
+script:
+  - id: update_hvac_action_led
+    mode: restart
+    then:
+      - lambda: |-
+          if (!id(hvac_action_led).is_ready()) {
+            ESP_LOGD("update_hvac_action_led", "HVAC action LED not ready; skipping update");
+            return;
+          }
+          auto call = id(hvac_action_led).turn_on();
+          call.set_effect("spooky");
+          call.set_brightness(0.75f);
+          call.set_color_mode(esphome::light::ColorMode::RGB_WHITE);
 
-output:
-  - platform: gpio
-    pin: 1
-    id: pin_ac
-  - platform: gpio
-    id: pin_heat
-    pin: 2
-  - platform: gpio
-    id: pin_fan
-    pin: 3
+          // If fan is off, turn off LED and exit early
+          if (!id(computed_fan).state) {
+            id(hvac_action_led).turn_off().perform();
+            return;
+          }
+
+          // Heating mode - white light
+          if (id(computed_heat).state) {
+            call.set_rgbw(0.0f, 0.0f, 0.0f, 1.0f);
+            call.perform();
+            return;
+          }
+
+          // Cooling mode - yellow light
+          if (id(computed_ac).state) {
+            call.set_rgb(1.0f, 1.0f, 0.0f);
+            call.perform();
+            return;
+          }
+
+          // Fan only mode - green light
+          call.set_rgb(0.0f, 1.0f, 0.0f);
+          call.perform();
