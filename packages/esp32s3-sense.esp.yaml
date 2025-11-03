@@ -13,8 +13,8 @@ esphome:
       - -Iinclude
     board_build.f_flash: 80000000L
     board_build.flash_mode: dio
-  # includes:
-    # - include/esp32_camera_sensor_helpers.h
+  includes:
+    - include/esp32_camera_sensor_helpers.h
   on_boot:
     priority: -80
     then:
@@ -112,13 +112,13 @@ esp32_camera:
   href_pin: 47
   pixel_clock_pin: 13
   # Camera config
-  resolution: 1280x1024
-  jpeg_quality: 24
+  resolution: 1024x768
+  jpeg_quality: 10
   idle_framerate: 0.2fps
   max_framerate: ${camera_max_fps}fps
-  wb_mode: home # white balance
+  wb_mode: OFFICE # white balance
   agc_mode: auto # automatic gain
-  agc_gain_ceiling: 64x
+  agc_gain_ceiling: 16x
   aec_mode: auto # automatic exposure control
   ae_level: 1 # auto exposure level
   aec2: true  # automatic exposure
@@ -129,7 +129,243 @@ esp32_camera_web_server:
   # - port: 8081
   #   mode: snapshot
 
+number:
+  - platform: template
+    name: "Cam: Brightness"
+    id: camera_brightness
+    min_value: -2
+    max_value: 2
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: mdi:brightness-6
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            auto *cam = id(espcam);
+            cam->set_brightness((int) x);
+            if (!cam->is_ready()) {
+              return;
+            }
+            cam->update_camera_parameters();
+  - platform: template
+    name: "Cam: Contrast"
+    id: camera_contrast
+    min_value: -2
+    max_value: 2
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: mdi:contrast-box
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            auto *cam = id(espcam);
+            cam->set_contrast((int) x);
+            if (!cam->is_ready()) {
+              return;
+            }
+            cam->update_camera_parameters();
+  - platform: template
+    name: "Cam: Saturation"
+    id: camera_saturation
+    min_value: -2
+    max_value: 2
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: mdi:palette
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            auto *cam = id(espcam);
+            cam->set_saturation((int) x);
+            if (!cam->is_ready()) {
+              return;
+            }
+            cam->update_camera_parameters();
+  - platform: template
+    name: "Cam: Sharpness"
+    id: camera_sharpness
+    min_value: -2
+    max_value: 2
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    icon: mdi:image-filter-center-focus-strong
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            espcam_helpers::set_sharpness((int) x);
+  - platform: template
+    name: "Cam: AE Level"
+    id: camera_ae_level
+    min_value: -2
+    max_value: 2
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 1
+    icon: mdi:chart-bell-curve-cumulative
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            auto *cam = id(espcam);
+            cam->set_ae_level((int) x);
+            if (!cam->is_ready()) {
+              return;
+            }
+            cam->update_camera_parameters();
+  - platform: template
+    name: "Cam: JPEG Quality"
+    id: camera_jpeg_quality
+    min_value: 10
+    max_value: 63
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 14
+    unit_of_measurement: "Q"
+    icon: mdi:format-vertical-align-center
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            auto *cam = id(espcam);
+            const int quality = (int) x;
+            cam->set_jpeg_quality(quality);
+            espcam_helpers::set_quality(quality);
+  - platform: template
+    name: "Cam: Max FPS"
+    id: camera_max_fps
+    min_value: 0.5
+    max_value: 15.0
+    step: 0.5
+    optimistic: true
+    restore_value: true
+    initial_value: ${camera_max_fps}
+    unit_of_measurement: "fps"
+    icon: mdi:video
+    entity_category: config
+    on_value:
+      then:
+        - lambda: |-
+            if (x > 0.0f) {
+              const uint32_t interval = (uint32_t) (1000.0f / x);
+              id(espcam).set_max_update_interval(interval);
+            }
+
+switch:
+  - platform: template
+    name: "Cam: AEC2"
+    id: camera_aec2
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    icon: mdi:chip
+    entity_category: config
+    turn_on_action:
+      - lambda: |-
+          auto *cam = id(espcam);
+          cam->set_aec2(true);
+          if (!cam->is_ready()) {
+            return;
+          }
+          cam->update_camera_parameters();
+    turn_off_action:
+      - lambda: |-
+          auto *cam = id(espcam);
+          cam->set_aec2(false);
+          if (!cam->is_ready()) {
+            return;
+          }
+          cam->update_camera_parameters();
+  - platform: template
+    name: "Cam: Denoise"
+    id: camera_denoise
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:wave
+    entity_category: config
+    turn_on_action:
+        - lambda: |-
+            espcam_helpers::set_denoise(true);
+    turn_off_action:
+        - lambda: |-
+            espcam_helpers::set_denoise(false);
+  - platform: template
+    name: "Cam: Raw GMA"
+    id: camera_raw_gma
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:chart-bell-curve
+    entity_category: config
+    turn_on_action:
+        - lambda: |-
+            espcam_helpers::set_raw_gma(true);
+    turn_off_action:
+        - lambda: |-
+            espcam_helpers::set_raw_gma(false);
+  - platform: template
+    name: "Cam: DCW"
+    id: camera_dcw
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:image-filter-hdr
+    entity_category: config
+    turn_on_action:
+        - lambda: |-
+            espcam_helpers::set_dcw(true);
+    turn_off_action:
+        - lambda: |-
+            espcam_helpers::set_dcw(false);
+  - platform: template
+    name: "Cam: AWB Gain"
+    id: camera_awb_gain
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    icon: mdi:chart-line-variant
+    entity_category: config
+    turn_on_action:
+        - lambda: |-
+            espcam_helpers::set_awb_gain(true);
+    turn_off_action:
+        - lambda: |-
+            espcam_helpers::set_awb_gain(false);
+
 binary_sensor:
+  # Camera Overheat Protection
+  #
+  # CRITICAL: This thermal protection was implemented after multiple ESP32-S3 Sense
+  # devices failed due to overheating caused by continuous camera operation at high
+  # frame rates. DO NOT REMOVE without careful consideration.
+  #
+  # How it works:
+  # - Monitors ESP32 internal temperature sensor continuously
+  # - Uses hysteresis (latching) to prevent rapid on/off cycling:
+  #   * Triggers at 70°C (camera_overheat_threshold_c) - reduces FPS to 1.0
+  #   * Releases at 65°C (camera_resume_threshold_c) - restores normal FPS
+  # - The 5°C hysteresis gap ensures stable operation during temperature fluctuations
+  #
+  # When overheating occurs:
+  # - Camera framerate is immediately throttled to 1.0 fps (camera_overheat_fps)
+  # - This dramatically reduces processing load and heat generation
+  # - Device remains functional but with minimal camera activity
+  #
+  # When temperature recovers:
+  # - Normal framerate is restored from the camera_max_fps setting
+  # - Allows device to return to full performance once safe
+  #
+  # Thresholds can be adjusted via substitutions at the top of this file if needed
+  # for different environmental conditions or use cases.
   - platform: template
     name: Camera Overheat
     id: camera_overheat
@@ -161,10 +397,12 @@ binary_sensor:
             format: "Camera temperature recovered (%.1f°C). Restoring previous camera framerate."
             args: [ 'id(esp_internal_temp).state' ]
         - lambda: |-
-            const float fps = ${camera_max_fps};
-            if (fps > 0.0f) {
-              const uint32_t ms = (uint32_t)(1000.0f / fps);
-              id(espcam).set_max_update_interval(ms);
+            if (id(camera_max_fps).has_state()) {
+              const float fps = id(camera_max_fps).state;
+              if (fps > 0.0f) {
+                const uint32_t ms = (uint32_t)(1000.0f / fps);
+                id(espcam).set_max_update_interval(ms);
+              }
             }
 
 # Configuration for I2S audio
