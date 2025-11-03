@@ -4,22 +4,7 @@ lvgl:
   touchscreens:
     - touchscreen_id: ${thermostat_touchscreen_id}
   buffer_size: 100%
-  on_idle:
-    timeout: !lambda "return static_cast<uint32_t>(id(display_timeout).state * 1000.0f);"
-    then:
-      - logger.log:
-          level: DEBUG
-          format: "[idle] LVGL is idle"
-      - if:
-          condition:
-            lambda: 'return id(has_backlight_light);'
-          then:
-            - light.turn_off: display_backlight
-      - globals.set:
-          id: display_is_paused
-          value: 'true'
-      - script.execute: stop_fan_animation
-      - lvgl.pause:
+  byte_order: little_endian
 
   style_definitions:
     - id: warming_color

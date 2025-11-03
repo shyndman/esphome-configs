@@ -80,11 +80,6 @@ touchscreen:
               - lvgl.resume:
               - lvgl.widget.redraw:
               - light.turn_on: display_backlight
-        - if:
-            condition:
-              lambda: 'return id(switch_antiburn).state;'
-            then:
-              - switch.turn_off: switch_antiburn
 
 display:
   - platform: mipi_rgb

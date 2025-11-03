@@ -2,13 +2,9 @@
 substitutions:
   thermostat_ui_desktop_timeout_enabled: 'false'
   thermostat_ui_desktop_timeout_duration: '6s'
-  thermostat_ui_idle_timeout_initial: 45
-  thermostat_ui_antiburn_enabled: 'true'
-  thermostat_ui_antiburn_internal: 'false'
-  thermostat_ui_has_backlight_light: 'true'
-  thermostat_ui_time_id: esptime
   thermostat_ui_target_cooling: '0'
   thermostat_ui_target_heating: '1'
+  thermostat_ui_startup_page: loading_page
 
 esphome:
   includes:
@@ -58,25 +54,16 @@ globals:
     initial_value: '0'
   - id: slider_track_height
     type: int
-    initial_value: '225'
+    initial_value: '600'
   - id: slider_label_y
     type: int
-    initial_value: '186'
+    initial_value: '496'
   - id: load_timeout_enabled
     type: bool
     initial_value: '${thermostat_ui_desktop_timeout_enabled}'
   - id: load_timeout_triggered
     type: bool
     initial_value: 'false'
-  - id: antiburn_feature_enabled
-    type: bool
-    initial_value: '${thermostat_ui_antiburn_enabled}'
-  - id: antiburn_last_minute
-    type: int
-    initial_value: '-1'
-  - id: has_backlight_light
-    type: bool
-    initial_value: '${thermostat_ui_has_backlight_light}'
   - id: data_weather_condition_ready
     type: bool
     initial_value: 'false'
@@ -104,9 +91,6 @@ globals:
   - id: fan_animation_active
     type: bool
     initial_value: 'false'
-  - id: display_is_paused
-    type: bool
-    initial_value: 'false'
   - id: ui_ready
     type: bool
     initial_value: 'false'
@@ -119,20 +103,6 @@ globals:
   - id: data_hvac_status_ready
     type: bool
     initial_value: 'false'
-
-number:
-  - platform: template
-    name: "${friendly_name} Screen Timeout"
-    optimistic: true
-    id: display_timeout
-    unit_of_measurement: "s"
-    initial_value: ${thermostat_ui_idle_timeout_initial}
-    restore_value: true
-    min_value: 10
-    max_value: 180
-    step: 5
-    mode: box
-
 script:
   - id: commit_setpoints
     mode: restart
@@ -446,7 +416,6 @@ script:
     mode: restart
     then:
       - lambda: |-
-          id(display_is_paused) = false;
           auto touch = id(${thermostat_touchscreen_id});
           if (touch == nullptr) {
             ESP_LOGW("touch", "Touchscreen ID ${thermostat_touchscreen_id} not found");
@@ -482,7 +451,6 @@ script:
     mode: restart
     then:
       - lambda: |-
-          id(display_is_paused) = false;
           id(pending_drag_active) = false;
           auto touch = id(${thermostat_touchscreen_id});
           if (touch == nullptr) {
@@ -671,104 +639,17 @@ script:
                   - lvgl.page.show: loading_page
 
 
-switch:
+button:
   - platform: template
-    name: "${friendly_name} Antiburn"
-    id: switch_antiburn
-    icon: mdi:television-shimmer
-    entity_category: config
-    optimistic: true
-    internal: ${thermostat_ui_antiburn_internal}
-    turn_on_action:
-      - if:
-          condition:
-            lambda: 'return id(antiburn_feature_enabled);'
-          then:
-            - logger.log:
-                level: DEBUG
-                format: "Starting Antiburn"
-            - if:
-                condition: lvgl.is_paused
-                then:
-                  - lvgl.resume:
-                  - lvgl.widget.redraw:
-            - globals.set:
-                id: display_is_paused
-                value: 'true'
-            - script.execute: stop_fan_animation
-            - lvgl.pause:
-                show_snow: true
-            - if:
-                condition:
-                  lambda: 'return id(has_backlight_light);'
-                then:
-                  - light.turn_off: display_backlight
-          else:
-            - logger.log:
-                level: DEBUG
-                format: "Antiburn disabled; ignoring turn_on"
-    turn_off_action:
-      - if:
-          condition:
-            lambda: 'return id(antiburn_feature_enabled);'
-          then:
-            - logger.log:
-                level: DEBUG
-                format: "Stopping Antiburn"
-            - if:
-                condition: lvgl.is_paused
-                then:
-                  - lvgl.resume:
-                  - lvgl.widget.redraw:
-            - globals.set:
-                id: display_is_paused
-                value: 'false'
-            - script.execute: update_fan_animation
-            - if:
-                condition:
-                  lambda: 'return id(has_backlight_light);'
-                then:
-                  - light.turn_on: display_backlight
-          else:
-            - logger.log:
-                level: DEBUG
-                format: "Antiburn disabled; ignoring turn_off"
-
+    name: "${friendly_name} UI Diagnostics"
+    id: button_debug_ui
+    entity_category: diagnostic
+    icon: mdi:magnify
+    on_press:
+      then:
+        - script.execute: debug_force_main_page
 
 interval:
-  - interval: 1min
-    then:
-      - lambda: |-
-          if (!id(antiburn_feature_enabled)) {
-            if (id(switch_antiburn).state) {
-              id(switch_antiburn).turn_off();
-            }
-            return;
-          }
-          auto now = id(${thermostat_ui_time_id}).now();
-          if (!now.is_valid()) {
-            return;
-          }
-          int minute = now.minute;
-          if (minute == id(antiburn_last_minute)) {
-            return;
-          }
-          id(antiburn_last_minute) = minute;
-          bool within_hours = now.hour >= 2 && now.hour <= 5;
-          if (within_hours && minute == 5) {
-            if (!id(switch_antiburn).state) {
-              ESP_LOGD("main", "[loading] Antiburn schedule start");
-              id(switch_antiburn).turn_on();
-            }
-          } else if (within_hours && minute == 35) {
-            if (id(switch_antiburn).state) {
-              ESP_LOGD("main", "[loading] Antiburn schedule stop");
-              id(switch_antiburn).turn_off();
-            }
-          } else if (!within_hours && id(switch_antiburn).state) {
-            ESP_LOGD("main", "[loading] Antiburn stop outside window");
-            id(switch_antiburn).turn_off();
-          }
   - interval: 32ms
     then:
       - if:
