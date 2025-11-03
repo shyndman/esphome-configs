@@ -1,18 +1,8 @@
+# https://www.waveshare.com/esp32-p4-nano.htm
+
 esphome:
-  name: esp32-p4-nano-hx8394
   platformio_options:
     build_flags: -DBOARD_HAS_PSRAM
-  on_boot:
-    priority: 800
-    then:
-      - lambda: |-
-          id(panel_pmic).write_byte(0x95, 0x11);
-          id(panel_pmic).write_byte(0x95, 0x17);
-          id(panel_pmic).write_byte(0x96, 0x00);
-      - delay: 100ms
-      - lambda: |-
-          id(panel_pmic).write_byte(0x96, 0xFF);
-      - delay: 1s
 
 esp32:
   variant: ESP32P4
@@ -20,22 +10,36 @@ esp32:
   flash_size: 16MB
   framework:
     type: esp-idf
+    # version: 5.5.1
     sdkconfig_options:
-      CONFIG_SPIRAM_XIP_FROM_PSRAM: "y"
-      CONFIG_CACHE_L2_CACHE_256KB: "y"
-      CONFIG_CACHE_L2_CACHE_LINE_128B: "y"
       CONFIG_COMPILER_OPTIMIZATION_PERF: "y"
-      COMPILER_OPTIMIZATION_SIZE: "y"
       CONFIG_LWIP_MAX_SOCKETS: '16'
+      CONFIG_SPIRAM_XIP_FROM_PSRAM: n
+    advanced:
+      enable_idf_experimental_features: true
+
+logger:
+  baud_rate: 115200
+  hardware_uart: UART0
 
 psram:
   speed: 200MHz
+  mode: hex
 
 esp_ldo:
   - id: mipi_phy_ldo
     channel: 3
     voltage: 2.5V
 
+# This bus is used to communicate with the display's PMIC early in the boot
+# process, to have things powered and ready by the time display init begins
+i2c:
+  - id: mipi_bus
+    sda: 7
+    scl: 8
+    frequency: 100kHz
+
+# The ESP32-P4 does not have radios, so requires a coprocessor for Wifi/Bluetooth
 esp32_hosted:
   variant: ESP32C6
   reset_pin: 54
@@ -47,17 +51,16 @@ esp32_hosted:
   d3_pin: 17
   active_high: true
 
-logger:
-  baud_rate: 115200
-  hardware_uart: UART0
+output:
+  - platform: ledc
+    pin: 26
+    id: backlight_pwm
+    frequency: 1000Hz
 
-i2c:
-  - id: bus_i2c
-    sda: 7
-    scl: 8
-    frequency: 100kHz
-
-i2c_device:
-  - id: panel_pmic
-    i2c_id: bus_i2c
-    address: 0x45
+light:
+  - platform: monochromatic
+    id: display_backlight
+    output: backlight_pwm
+    name: '${friendly_name} Backlight'
+    default_transition_length: 250ms
+    restore_mode: RESTORE_DEFAULT_ON
