@@ -1,0 +1,81 @@
+# BME68x BSEC2 Air Quality, Temperature, Humidity, and Pressure Sensor
+#
+# Configuration for BME680/BME688 environmental sensors using Bosch BSEC2 library.
+# Provides IAQ (Indoor Air Quality), temperature, humidity, pressure, CO2 equivalent,
+# and breath VOC measurements.
+#
+# Substitutions (optional):
+#   bme68x_i2c_id: I2C bus ID (default: bus_i2c)
+#   bme68x_address: I2C address (default: 0x77, alternative: 0x76)
+#   bme68x_model: Sensor model (default: bme688, alternative: bme680)
+#   bme68x_temp_offset: Temperature offset in °C (default: 4)
+#   bme68x_operating_age: Operating age for calibration (default: 28d)
+
+substitutions:
+  bme68x_i2c_id: bus_i2c
+  bme68x_address: "0x77"
+  bme68x_model: bme688
+  bme68x_temp_offset: "4"
+  bme68x_operating_age: 28d
+
+bme68x_bsec2_i2c:
+  i2c_id: ${bme68x_i2c_id}
+  address: ${bme68x_address}
+  model: ${bme68x_model}
+  operating_age: ${bme68x_operating_age}
+  sample_rate: LP
+  supply_voltage: 3.3V
+  # This value is subtracted from the sampled temperature to produce the sensor
+  # value. BME688 sensors can read high because the sensor is in close proximity
+  # to the internal heater which performs the gas sensing.
+  temperature_offset: ${bme68x_temp_offset}
+
+sensor:
+  - platform: bme68x_bsec2
+    temperature:
+      name: 'BME68x Temperature'
+      id: bme68x_temperature
+    pressure:
+      name: 'BME68x Pressure'
+    humidity:
+      name: 'BME68x Humidity'
+    iaq:
+      name: 'BME68x IAQ'
+      id: iaq
+    co2_equivalent:
+      name: 'BME68x CO2 Equivalent'
+    breath_voc_equivalent:
+      name: 'BME68x Breath VOC Equivalent'
+
+text_sensor:
+  - platform: template
+    name: 'BME68x IAQ Classification'
+    lambda: |-
+      if (!id(iaq).has_state() || id(iaq).state != id(iaq).state) {
+        return {"Unavailable"};
+      }
+      const int iaq_value = static_cast<int>(id(iaq).state);
+      if (iaq_value <= 50) {
+        return {"Excellent"};
+      }
+      else if (iaq_value >= 51 && iaq_value <= 100) {
+        return {"Good"};
+      }
+      else if (iaq_value >= 101 && iaq_value <= 150) {
+        return {"Lightly polluted"};
+      }
+      else if (iaq_value >= 151 && iaq_value <= 200) {
+        return {"Moderately polluted"};
+      }
+      else if (iaq_value >= 201 && iaq_value <= 250) {
+        return {"Heavily polluted"};
+      }
+      else if (iaq_value >= 251 && iaq_value <= 350) {
+        return {"Severely polluted"};
+      }
+      else if (iaq_value >= 351) {
+        return {"Extremely polluted"};
+      }
+      else {
+        return {"error"};
+      }
