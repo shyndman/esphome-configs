@@ -120,8 +120,9 @@ esp32_camera:
   agc_mode: auto # automatic gain
   agc_gain_ceiling: 16x
   aec_mode: auto # automatic exposure control
-  ae_level: 1 # auto exposure level
+  ae_level: 2 # auto exposure level
   aec2: true  # automatic exposure
+  horizontal_mirror: True
 
 esp32_camera_web_server:
   - port: 8080
