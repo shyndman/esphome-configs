@@ -43,10 +43,10 @@ constexpr float kIdealTemp = THERMOSTAT_IDEAL_TEMP;
 constexpr float kHeatOverrun = THERMOSTAT_HEAT_OVERRUN;
 constexpr float kCoolOverrun = THERMOSTAT_COOL_OVERRUN;
 
-// Geometry tuned so 21 °C remains near the legacy visual position while
-// extending the range to 16–30 °C.
-constexpr float kTrackTopY = 120.0f;   // smaller y == hotter
-constexpr float kIdealLabelY = 255.0f; // legacy position for 21 °C
+// Geometry tuned for the 720x1280 panel so 21 °C sits near the familiar spot
+// while still mapping the full 16–30 °C range.
+constexpr float kTrackTopY = 320.0f;   // smaller y == hotter
+constexpr float kIdealLabelY = 680.0f; // visual anchor for 21 °C
 
 constexpr float kSlope = (kIdealLabelY - kTrackTopY) / (kIdealTemp - kTempMax);
 constexpr float kIntercept = kTrackTopY - (kSlope * kTempMax);
@@ -78,12 +78,10 @@ inline int track_y_from_temperature(float temperature) {
   return clamp_track_y(y);
 }
 
-inline int compute_label_y(int track_y) {
-  return std::max(50, track_y - 69);
-}
+inline int compute_label_y(int track_y) { return std::max(120, track_y - 184); }
 
 inline int compute_track_height(int track_y) {
-  return std::max(0, 480 - track_y);
+  return std::max(0, 1280 - track_y);
 }
 
 inline SliderState compute_state_from_y(int sample_y) {
