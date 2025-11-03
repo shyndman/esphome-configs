@@ -50,17 +50,3 @@ esp32_hosted:
   d2_pin: 16
   d3_pin: 17
   active_high: true
-
-output:
-  - platform: ledc
-    pin: 26
-    id: backlight_pwm
-    frequency: 1000Hz
-
-light:
-  - platform: monochromatic
-    id: display_backlight
-    output: backlight_pwm
-    name: '${friendly_name} Backlight'
-    default_transition_length: 250ms
-    restore_mode: RESTORE_DEFAULT_ON
