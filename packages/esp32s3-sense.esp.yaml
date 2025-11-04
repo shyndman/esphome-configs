@@ -122,7 +122,7 @@ esp32_camera:
   aec_mode: auto # automatic exposure control
   ae_level: 2 # auto exposure level
   aec2: true  # automatic exposure
-  horizontal_mirror: True
+  horizontal_mirror: false
 
 esp32_camera_web_server:
   - port: 8080
