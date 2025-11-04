@@ -12,8 +12,6 @@ output:
     id: brightness_command_output
     type: float
     inverted: True
-    min_power: 0.2
-    max_power: 0.9
     write_action:
      - lambda: !lambda id(hx8394_pmic).write_byte(0x96, (uint8_t)(255.0 * (1.0 - state)));
 
@@ -47,6 +45,9 @@ touchscreen:
       swap_xy: false
       mirror_x: false
       mirror_y: false
+    on_release:
+      then:
+        - script.execute: resume_display_for_interaction
 
 display:
   # NOTE that when used with LVGL, its byte_order must be set to little_endian
