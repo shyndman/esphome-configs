@@ -13,8 +13,17 @@ esp32:
     # version: 5.5.1
     sdkconfig_options:
       CONFIG_COMPILER_OPTIMIZATION_PERF: "y"
+      CONFIG_IDF_EXPERIMENTAL_FEATURES: y
+      CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM: y
+      CONFIG_LV_USE_PPA: y
       CONFIG_LWIP_MAX_SOCKETS: '16'
+      CONFIG_SPIRAM_MODE_HEX: y
+      CONFIG_SPIRAM_RODATA: y
+      CONFIG_SPIRAM_USE: y
       CONFIG_SPIRAM_XIP_FROM_PSRAM: n
+      CONFIG_SPIRAM: y
+      LV_USE_FPS_COUNTER: "1"
+      LV_USE_PERF_MONITOR: "1"
     advanced:
       enable_idf_experimental_features: true
 

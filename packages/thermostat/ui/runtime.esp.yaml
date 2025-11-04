@@ -95,6 +95,9 @@ globals:
   - id: ui_ready
     type: bool
     initial_value: 'false'
+  - id: debug_outline_enabled
+    type: bool
+    initial_value: 'false'
   - id: suppress_setpoint_animation
     type: bool
     initial_value: 'false'
@@ -215,6 +218,46 @@ script:
             - script.execute: start_fan_animation
           else:
             - script.execute: stop_fan_animation
+  - id: update_hvac_status_visuals
+    mode: restart
+    then:
+      - lambda: |-
+          const bool heat_has_state = id(computed_heat).has_state();
+          const bool cool_has_state = id(computed_ac).has_state();
+          const bool heat_active = heat_has_state && id(computed_heat).state;
+          const bool cool_active = cool_has_state && id(computed_ac).state;
+
+          if (!heat_has_state && !cool_has_state) {
+            ESP_LOGD("hvac", "update_hvac_status_visuals: no states available yet");
+            return;
+          }
+
+          lv_obj_t *label = id(hvac_status_label);
+          if (label == nullptr) {
+            ESP_LOGW("hvac", "hvac_status_label not ready; skipping update");
+            return;
+          }
+
+          if (heat_active && cool_active) {
+            ESP_LOGW("hvac", "Both heat and cool reported active; preferring HEATING label");
+          }
+
+          if (heat_active) {
+            lv_label_set_text(label, "HEATING");
+            lv_obj_set_style_text_color(label, lv_color_hex(0xe1752e), LV_PART_MAIN);
+            lv_obj_set_style_opa(label, LV_OPA_COVER, LV_PART_MAIN);
+            return;
+          }
+
+          if (cool_active) {
+            lv_label_set_text(label, "COOLING");
+            lv_obj_set_style_text_color(label, lv_color_hex(0x2776cc), LV_PART_MAIN);
+            lv_obj_set_style_opa(label, LV_OPA_COVER, LV_PART_MAIN);
+            return;
+          }
+
+          lv_label_set_text(label, "");
+          lv_obj_set_style_opa(label, LV_OPA_TRANSP, LV_PART_MAIN);
   - id: debug_force_main_page
     mode: single
     then:
@@ -271,6 +314,72 @@ script:
                    id(track_y_position),
                    id(slider_track_height),
                    id(slider_label_y));
+  - id: debug_apply_outline_width
+    mode: restart
+    parameters:
+      outline_width: int
+    then:
+      - lambda: |-
+          const int outline = outline_width;
+          ESP_LOGI("ui-outline", "Applying outline width %d to UI widgets", outline);
+          struct WidgetInfo {
+            const char *name;
+            lv_obj_t *obj;
+          };
+          const WidgetInfo widgets[] = {
+            {"loading_connection_icon", id(loading_connection_icon)},
+            {"loading_home_icon", id(loading_home_icon)},
+            {"loading_status_text", id(loading_status_text)},
+            {"top_bar", id(top_bar)},
+            {"weather_group", id(weather_group)},
+            {"weather_icon", id(weather_icon)},
+            {"weather_temp", id(weather_temp)},
+            {"hvac_status_group", id(hvac_status_group)},
+            {"hvac_status_label", id(hvac_status_label)},
+            {"room_group", id(room_group)},
+            {"room_temp", id(room_temp)},
+            {"room_icon", id(room_icon)},
+            {"setpoint_group", id(setpoint_group)},
+            {"cooling_setpoint_container", id(cooling_setpoint_container)},
+            {"cooling_setpoint", id(cooling_setpoint)},
+            {"cooling_setpoint_fraction", id(cooling_setpoint_fraction)},
+            {"heating_setpoint_container", id(heating_setpoint_container)},
+            {"heating_setpoint", id(heating_setpoint)},
+            {"heating_setpoint_fraction", id(heating_setpoint_fraction)},
+            {"temperature_track", id(temperature_track)},
+            {"track_touch_zone", id(track_touch_zone)},
+            {"action_bar", id(action_bar)},
+            {"mode_icon", id(mode_icon)},
+            {"power_icon", id(power_icon)},
+            {"fan_anim", id(fan_anim)},
+            {"bird_alert_label", id(bird_alert_label)},
+            {"bird_alert_touch_overlay", id(bird_alert_touch_overlay)}
+          };
+          const size_t widget_count = sizeof(widgets) / sizeof(widgets[0]);
+          for (size_t i = 0; i < widget_count; ++i) {
+            const WidgetInfo &info = widgets[i];
+            if (info.obj == nullptr) {
+              ESP_LOGW("ui-outline", "%s missing", info.name);
+              continue;
+            }
+            lv_obj_set_style_outline_width(info.obj, outline, LV_PART_MAIN);
+            lv_coord_t width = lv_obj_get_width(info.obj);
+            lv_coord_t height = lv_obj_get_height(info.obj);
+            lv_coord_t pad_top = lv_obj_get_style_pad_top(info.obj, LV_PART_MAIN);
+            lv_coord_t pad_bottom = lv_obj_get_style_pad_bottom(info.obj, LV_PART_MAIN);
+            lv_coord_t pad_left = lv_obj_get_style_pad_left(info.obj, LV_PART_MAIN);
+            lv_coord_t pad_right = lv_obj_get_style_pad_right(info.obj, LV_PART_MAIN);
+            ESP_LOGI("ui-outline", "%s size=%dx%d outline=%d",
+                     info.name,
+                     static_cast<int>(width),
+                     static_cast<int>(height),
+                     outline);
+            ESP_LOGI("ui-outline", "  padding top=%d bottom=%d left=%d right=%d",
+                     static_cast<int>(pad_top),
+                     static_cast<int>(pad_bottom),
+                     static_cast<int>(pad_left),
+                     static_cast<int>(pad_right));
+          }
   - id: show_bird_alert
     mode: single
     then:
@@ -352,25 +461,25 @@ script:
           text_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
                        ? lv_color_hex(0x2776cc)
-                       : lv_color_hex(0x292929);
+                       : lv_color_hex(0x4a4a4a);
       - lvgl.widget.update:
           id: cooling_setpoint_fraction
           text_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
                        ? lv_color_hex(0x2776cc)
-                       : lv_color_hex(0x292929);
+                       : lv_color_hex(0x4a4a4a);
       - lvgl.widget.update:
           id: heating_setpoint
           text_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
-                       : lv_color_hex(0x292929);
+                       : lv_color_hex(0x4a4a4a);
       - lvgl.widget.update:
           id: heating_setpoint_fraction
           text_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
-                       : lv_color_hex(0x292929);
+                       : lv_color_hex(0x4a4a4a);
       - lambda: |-
           // Keep the setpoint text behind the track to let the bar trim any overlap.
           lv_obj_move_background(id(setpoint_group));
@@ -459,10 +568,10 @@ script:
           const uint32_t track_end_color = new_heating ? 0xe1752e : 0x2776cc;
           thermostat::ui::animate_two_stage_color(track, track_start_color, neutral_color, track_end_color, 60, false);
 
-          const uint32_t cooling_start_color = (old_target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x292929;
-          const uint32_t heating_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x292929;
-          const uint32_t cooling_end_color = (target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x292929;
-          const uint32_t heating_end_color = (target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x292929;
+          const uint32_t cooling_start_color = (old_target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x4a4a4a;
+          const uint32_t heating_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x4a4a4a;
+          const uint32_t cooling_end_color = (target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x4a4a4a;
+          const uint32_t heating_end_color = (target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x4a4a4a;
           thermostat::ui::animate_two_stage_color(id(cooling_setpoint), cooling_start_color, neutral_color, cooling_end_color, 60, true);
           thermostat::ui::animate_two_stage_color(id(cooling_setpoint_fraction), cooling_start_color, neutral_color, cooling_end_color, 60, true);
           thermostat::ui::animate_two_stage_color(id(heating_setpoint), heating_start_color, neutral_color, heating_end_color, 60, true);
@@ -496,12 +605,6 @@ script:
           }
 
           int raw_y = point.y;
-          if (raw_y < -100 || raw_y > 600) {
-            ESP_LOGW("touch", "Ignoring out-of-range prime y=%d", raw_y);
-            id(pending_drag_active) = false;
-            return;
-          }
-
           id(pending_drag_active) = true;
           id(pending_drag_start_y) = raw_y;
   - id: begin_drag_from_touch
@@ -532,15 +635,10 @@ script:
           }
 
           int raw_y = point.y;
-          if (raw_y < -100 || raw_y > 600) {
-            ESP_LOGW("touch", "Ignoring out-of-range press y=%d", raw_y);
-            id(is_dragging) = false;
-            return;
-          }
-
-          int clamped_y = raw_y;
           const int min_y = thermostat::slider::track_min_y();
           const int max_y = thermostat::slider::track_max_y();
+
+          int clamped_y = raw_y;
           if (clamped_y < min_y) clamped_y = min_y;
           if (clamped_y > max_y) clamped_y = max_y;
 
@@ -706,6 +804,36 @@ button:
       then:
         - script.execute: debug_force_main_page
 
+switch:
+  - platform: template
+    name: "${friendly_name} UI Outline Debug"
+    id: switch_debug_ui_outlines
+    icon: mdi:border-all
+    entity_category: diagnostic
+    restore_mode: ALWAYS_OFF
+    lambda: |-
+      return id(debug_outline_enabled);
+    turn_on_action:
+      - globals.set:
+          id: debug_outline_enabled
+          value: 'true'
+      - script.execute:
+          id: debug_apply_outline_width
+          outline_width: 2
+      - switch.template.publish:
+          id: switch_debug_ui_outlines
+          state: ON
+    turn_off_action:
+      - globals.set:
+          id: debug_outline_enabled
+          value: 'false'
+      - script.execute:
+          id: debug_apply_outline_width
+          outline_width: 0
+      - switch.template.publish:
+          id: switch_debug_ui_outlines
+          state: OFF
+
 interval:
   - interval: 32ms
     then:
@@ -746,13 +874,6 @@ interval:
                   }
 
                   int raw_y = point.y;
-                  if (raw_y < -100 || raw_y > 600) {
-                    ESP_LOGD("drag", "Ignoring out-of-range sample: raw_y=%d", raw_y);
-                    if (id(pending_drag_active)) {
-                      id(pending_drag_active) = false;
-                    }
-                    return;
-                  }
                   if (id(pending_drag_active)) {
                     int delta = raw_y - id(pending_drag_start_y);
                     if (abs(delta) >= 4) {

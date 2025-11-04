@@ -19,16 +19,17 @@ lvgl:
     - id: icon_bar_color
       text_color: 0xdadada
     - id: blurred_temp_color
-      text_color: 0x5A5A5A
+      text_color: 0x737373
     - id: action_icon_style
-      pad_all: 16
+      pad_all: 12
       radius: 8
     - id: setpoint_primary_label
       text_font: setpoint_primary_font
-      height: 84
+      height: SIZE_CONTENT
     - id: setpoint_secondary_label
       text_font: setpoint_secondary_font
-      pad_bottom: 8
+      pad_bottom: 4
+      translate_y: -13
 
   theme:
     obj:
@@ -68,11 +69,13 @@ lvgl:
               - image:
                   id: loading_connection_icon
                   src: loading_connection
+                  pad_bottom: 8
                   image_recolor: 0xdadada
                   image_recolor_opa: 100%
               - image:
                   id: loading_home_icon
                   src: loading_home
+                  pad_bottom: 24
                   image_recolor: 0xdadada
                   image_recolor_opa: 100%
               - label:
@@ -93,10 +96,12 @@ lvgl:
             x: 0
             y: 0
             width: 100%
-            height: 40
+            height: 64
             bg_opa: 0
             border_width: 0
-            pad_all: 8
+            pad_top: 12
+            pad_left: 40
+            pad_right: 40
             scrollable: false
             scrollbar_mode: 'off'
             layout:
@@ -113,6 +118,7 @@ lvgl:
                   border_width: 0
                   flex_grow: 1
                   pad_right: 12
+                  height: SIZE_CONTENT
                   scrollbar_mode: 'off'
                   layout:
                     type: flex
@@ -124,14 +130,15 @@ lvgl:
                     - image:
                         id: weather_icon
                         src: sunny
-                        image_recolor: 0xc0c0c0
+                        image_recolor: 0xa0a0a0
                         image_recolor_opa: 100%
+                        pad_right: 4
                         opa: 0
                     - label:
                         id: weather_temp
                         text: ""
                         text_font: top_bar_weather
-                        text_color: 0xc0c0c0
+                        text_color: 0xa0a0a0
                         opa: 0
                         pad_left: 8
               - obj:
@@ -139,6 +146,8 @@ lvgl:
                   bg_opa: 0
                   border_width: 0
                   flex_grow: 1
+                  height: SIZE_CONTENT
+                  pad_top: 5
                   scrollbar_mode: 'off'
                   layout:
                     type: flex
@@ -151,7 +160,7 @@ lvgl:
                     - label:
                         id: hvac_status_label
                         text: ""
-                        text_font: top_bar_weather
+                        text_font: hvac_status_font
                         text_align: center
                         opa: 0
               - obj:
@@ -160,7 +169,8 @@ lvgl:
                   border_width: 0
                   flex_grow: 1
                   y: 1
-                  pad_left: 12
+                  pad_left: 10
+                  height: SIZE_CONTENT
                   scrollbar_mode: 'off'
                   layout:
                     type: flex
@@ -174,16 +184,17 @@ lvgl:
                         id: room_temp
                         text: ""
                         text_font: top_bar_temp
-                        text_color: 0xc0c0c0
+                        text_color: 0xa0a0a0
                         opa: 0
                         pad_right: 8
                     - image:
                         id: room_icon
                         src: room_default
-                        image_recolor: 0xc0c0c0
+                        image_recolor: 0xa0a0a0
                         image_recolor_opa: 100%
                         opa: 0
                         pad_left: 8
+                        y: 1
         - obj:
             id: setpoint_group
             bg_opa: 0
@@ -192,7 +203,7 @@ lvgl:
             border_opa: 100%
             y: !lambda return id(slider_label_y);
             width: 100%
-            height: 70
+            height: 122
             pad_left: 38
             pad_right: 38
             scrollable: false
@@ -313,6 +324,7 @@ lvgl:
                         outline_color: 0x00ffff
                         border_width: 0
                         border_opa: 100%
+                        height: SIZE_CONTENT
                         scrollable: false
                         long_mode: CLIP
                         clickable: true
@@ -425,15 +437,17 @@ lvgl:
             x: 0
             y: 1120
             width: 100%
-            height: 96
+            height: SIZE_CONTENT
             bg_opa: 0
             border_width: 0
             scrollable: false
             scrollbar_mode: 'off'
+            pad_left: 80
+            pad_right: 80
             layout:
               type: flex
               flex_flow: row
-              flex_align_main: space_evenly
+              flex_align_main: space_between
               flex_align_cross: center
               pad_row: 0
               pad_column: 0
