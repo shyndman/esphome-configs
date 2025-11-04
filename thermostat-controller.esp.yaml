@@ -64,7 +64,7 @@ climate:
         target_temperature: ${thermostat_temp_step}
         current_temperature: 0.1
       max_humidity: 60%
-    on_boot_restore_from: memory
+    on_boot_restore_from: DEFAULT_PRESET
     default_preset: home
     # This sensor falls back on the thermostat's internal thermometer if the
     # Home Assistant room temperature sensor is unavailable.
@@ -344,7 +344,7 @@ script:
           }
           auto call = id(hvac_action_led).turn_on();
           call.set_effect("spooky");
-          call.set_brightness(0.75f);
+          call.set_brightness(0.1f);
           call.set_color_mode(esphome::light::ColorMode::RGB_WHITE);
 
           // If fan is off, turn off LED and exit early
