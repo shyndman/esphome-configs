@@ -78,7 +78,7 @@ inline int track_y_from_temperature(float temperature) {
   return clamp_track_y(y);
 }
 
-inline int compute_label_y(int track_y) { return std::max(120, track_y - 184); }
+inline int compute_label_y(int track_y) { return std::max(120, track_y - 114); }
 
 inline int compute_track_height(int track_y) {
   return std::max(0, 1280 - track_y);
