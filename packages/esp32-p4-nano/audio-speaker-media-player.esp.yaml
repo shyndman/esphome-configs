@@ -1,0 +1,14 @@
+# ESP-IDF compatible media player that rides on the existing speaker stack.
+# Requires packages/esp32-p4-nano/audio.esp.yaml to be included first.
+
+substitutions:
+  p4_media_player_id: p4_speaker_media_player
+
+media_player:
+  - platform: speaker
+    id: ${p4_media_player_id}
+    name: "${friendly_name} Speaker"
+    announcement_pipeline:
+      speaker: ${p4_speaker_id}
+    codec_support_enabled: true
+    buffer_size: 500000
