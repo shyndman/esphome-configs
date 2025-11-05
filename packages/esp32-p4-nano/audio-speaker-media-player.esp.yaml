@@ -7,8 +7,26 @@ substitutions:
 media_player:
   - platform: speaker
     id: ${p4_media_player_id}
-    name: "${friendly_name} Speaker"
+    name: "Speaker"
     announcement_pipeline:
-      speaker: ${p4_speaker_id}
+      speaker: ${p4_announcement_resampler_id}
+      format: WAV
+      num_channels: 1
+    media_pipeline:
+      speaker: ${p4_media_resampler_id}
+      format: FLAC
+      num_channels: 1
     codec_support_enabled: true
-    buffer_size: 500000
+    buffer_size: 750000
+    files:
+      - id: song
+        file: assets/song.flac
+    volume_increment: 2%
+
+button:
+  - platform: template
+    name: "Play Media File"
+    on_press:
+      - media_player.speaker.play_on_device_media_file:
+          media_file: song
+          announcement: false

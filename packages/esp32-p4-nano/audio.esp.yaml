@@ -6,6 +6,11 @@ substitutions:
   p4_audio_dac_id: p4_es8311_codec
   p4_audio_amp_switch_id: p4_pa_enable
   p4_speaker_id: p4_board_speaker
+  p4_mixer_speaker_id: p4_speaker_mixer
+  p4_announcement_mixer_input_id: p4_announcement_mixer_input
+  p4_media_mixer_input_id: p4_media_mixer_input
+  p4_announcement_resampler_id: p4_announcement_resampler
+  p4_media_resampler_id: p4_media_resampler
 
 i2s_audio:
   - id: ${p4_audio_bus_id}
@@ -18,7 +23,7 @@ audio_dac:
     id: ${p4_audio_dac_id}
     address: 0x18
     i2c_id: mipi_bus
-    sample_rate: 16000
+    sample_rate: 44100
     bits_per_sample: 16bit
     use_mclk: true
     use_microphone: false
@@ -30,15 +35,67 @@ speaker:
     dac_type: external
     i2s_dout_pin: 11
     channel: mono
-    sample_rate: 16000
+    sample_rate: 44100
     bits_per_sample: 16bit
+  - platform: mixer
+    id: ${p4_mixer_speaker_id}
+    output_speaker: ${p4_speaker_id}
+    source_speakers:
+      - id: ${p4_announcement_mixer_input_id}
+      - id: ${p4_media_mixer_input_id}
+  - platform: resampler
+    id: ${p4_media_resampler_id}
+    output_speaker: ${p4_media_mixer_input_id}
+    sample_rate: 16000
+    bits_per_sample: 16
+  - platform: resampler
+    id: ${p4_announcement_resampler_id}
+    output_speaker: ${p4_announcement_mixer_input_id}
+    sample_rate: 16000
+    bits_per_sample: 16
+    buffer_duration: 2000ms
+
 
 switch:
   - platform: gpio
     id: ${p4_audio_amp_switch_id}
-    name: "${friendly_name} Amplifier"
+    name: "Audio Amplifier"
     internal: true
     pin:
       number: 53
       mode: OUTPUT
     restore_mode: ALWAYS_ON
+
+script:
+  - id: p4_startup_sine
+    mode: restart
+    then:
+      - logger.log:
+          tag: p4_startup_sine
+          level: INFO
+          format: "Delaying to allow speaker init"
+      - delay: 750ms
+      - speaker.play:
+          id: ${p4_speaker_id}
+          data: !lambda |-
+            static std::vector<uint8_t> sine_wave;
+            if (sine_wave.empty()) {
+              ESP_LOGI("p4_startup_sine", "Building startup sine wave buffer (%0.2f s @ %0.0f Hz)", 2.0f, 523.25f);
+              const float sample_rate = 16000.0f;
+              const float duration_s = 2.0f;
+              const float frequency_hz = 523.25f;  // C5 pleasant chirp
+              const size_t samples = static_cast<size_t>(sample_rate * duration_s);
+              sine_wave.reserve(samples);
+              const float tau = 6.28318530718f;
+              for (size_t i = 0; i < samples; i++) {
+                const float t = static_cast<float>(i) / sample_rate;
+                const float value = std::sin(tau * frequency_hz * t);
+                const float scaled = value * 125.0f;  // keep small headroom but close to full scale
+                int sample = static_cast<int>(scaled + 128.0f);  // center on 128 for unsigned PCM
+                if (sample < 0) sample = 0;
+                if (sample > 255) sample = 255;
+                sine_wave.push_back(static_cast<uint8_t>(sample));
+              }
+            }
+            ESP_LOGV("p4_startup_sine", "Returning sine wave with %u samples", (unsigned) sine_wave.size());
+            return sine_wave;
