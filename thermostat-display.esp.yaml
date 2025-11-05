@@ -9,6 +9,7 @@ packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   p4-nano: !include packages/esp32-p4-nano.esp.yaml
   p4-nano-audio: !include packages/esp32-p4-nano/audio.esp.yaml
+  p4-nano-media-player: !include packages/esp32-p4-nano/audio-speaker-media-player.esp.yaml
   display: !include packages/display-hx8394.esp.yaml
   thermostat-ui: !include packages/thermostat/display-ui.esp.yaml
 
