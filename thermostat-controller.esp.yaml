@@ -326,7 +326,8 @@ light:
     chipset: ws2812
     rgb_order: GRB
     is_rgbw: true
-    restore_mode: ALWAYS_ON
+    restore_mode: ALWAYS_OFF
+    # color_correct: [10%, 10%, 10%, 10%]
     effects:
       - flicker:
           name: 'spooky'
@@ -344,29 +345,25 @@ script:
           }
           auto call = id(hvac_action_led).turn_on();
           call.set_effect("spooky");
-          call.set_brightness(0.1f);
           call.set_color_mode(esphome::light::ColorMode::RGB_WHITE);
 
           // If fan is off, turn off LED and exit early
           if (!id(computed_fan).state) {
-            id(hvac_action_led).turn_off().perform();
+            id(hvac_action_led).turn_off().set_brightness(0.1f).perform();
             return;
           }
 
           // Heating mode - white light
           if (id(computed_heat).state) {
-            call.set_rgbw(0.0f, 0.0f, 0.0f, 1.0f);
-            call.perform();
+            call.set_rgbw(0.0f, 0.0f, 0.0f, 1.0f).set_brightness(0.1f).perform();
             return;
           }
 
           // Cooling mode - yellow light
           if (id(computed_ac).state) {
-            call.set_rgb(1.0f, 1.0f, 0.0f);
-            call.perform();
+            call.set_rgb(1.0f, 1.0f, 0.0f).set_brightness(0.1f).perform();
             return;
           }
 
           // Fan only mode - green light
-          call.set_rgb(0.0f, 1.0f, 0.0f);
-          call.perform();
+          call.set_rgb(0.0f, 1.0f, 0.0f).set_brightness(0.1f).perform();
