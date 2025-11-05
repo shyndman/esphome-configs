@@ -1,0 +1,44 @@
+# Audio stack for the Waveshare ESP32-P4-NANO (ES8311 + NS4150B)
+# Include this package alongside packages/esp32-p4-nano.esp.yaml to enable speaker output.
+
+substitutions:
+  p4_audio_bus_id: p4_i2s_audio_bus
+  p4_audio_dac_id: p4_es8311_codec
+  p4_audio_amp_switch_id: p4_pa_enable
+  p4_speaker_id: p4_board_speaker
+
+i2s_audio:
+  - id: ${p4_audio_bus_id}
+    i2s_lrclk_pin: 10
+    i2s_bclk_pin: 12
+    i2s_mclk_pin: 13
+
+audio_dac:
+  - platform: es8311
+    id: ${p4_audio_dac_id}
+    address: 0x18
+    i2c_id: mipi_bus
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    use_mclk: true
+    use_microphone: false
+
+speaker:
+  - platform: i2s_audio
+    id: ${p4_speaker_id}
+    i2s_audio_id: ${p4_audio_bus_id}
+    dac_type: external
+    i2s_dout_pin: 11
+    channel: mono
+    sample_rate: 16000
+    bits_per_sample: 16bit
+
+switch:
+  - platform: gpio
+    id: ${p4_audio_amp_switch_id}
+    name: "${friendly_name} Amplifier"
+    internal: true
+    pin:
+      number: 53
+      mode: OUTPUT
+    restore_mode: ALWAYS_ON
