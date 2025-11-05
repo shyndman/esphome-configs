@@ -6,6 +6,27 @@ lvgl:
   buffer_size: 100%
   byte_order: little_endian
 
+  on_idle:
+    timeout: !lambda |-
+      const float seconds = id(display_timeout).state;
+      if (std::isnan(seconds) || seconds <= 0.0f) {
+        return static_cast<uint32_t>(45000);
+      }
+      return static_cast<uint32_t>(seconds * 1000.0f);
+    then:
+      - lambda: |-
+          ESP_LOGD("idle", "LVGL idle timeout reached (timeout=%.1fs)", id(display_timeout).state);
+          id(lvgl_idle_sleep_active) = true;
+      - light.turn_off: display_backlight
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - logger.log:
+                level: DEBUG
+                format: "[idle] LVGL already paused"
+          else:
+            - lvgl.pause:
+
   style_definitions:
     - id: warming_color
       bg_color: 0xe1752e
@@ -90,6 +111,8 @@ lvgl:
       bg_color: 0x000000
       scrollable: false
       scrollbar_mode: 'off'
+      on_load:
+        - script.execute: handle_main_page_loaded
       widgets:
         - obj:
             id: top_bar
@@ -100,8 +123,8 @@ lvgl:
             bg_opa: 0
             border_width: 0
             pad_top: 12
-            pad_left: 40
-            pad_right: 40
+            pad_left: 20
+            pad_right: 20
             scrollable: false
             scrollbar_mode: 'off'
             layout:

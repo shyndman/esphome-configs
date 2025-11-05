@@ -5,6 +5,7 @@ substitutions:
   thermostat_ui_target_cooling: '0'
   thermostat_ui_target_heating: '1'
   thermostat_ui_startup_page: loading_page
+  thermostat_ui_antiburn_schedule_enabled: 'true'
 
 esphome:
   includes:
@@ -262,7 +263,7 @@ script:
     mode: single
     then:
       - lvgl.page.show: main_page
-      - light.turn_on: display_backlight
+      - script.execute: resume_display_for_interaction
       - script.execute: debug_dump_ui_state
   - id: debug_dump_ui_state
     mode: single

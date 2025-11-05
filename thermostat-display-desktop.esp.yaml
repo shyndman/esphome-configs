@@ -7,6 +7,7 @@ substitutions:
   thermostat_ui_desktop_timeout_enabled: 'true'
   thermostat_ui_desktop_timeout_duration: '4s'
   thermostat_ui_startup_page: loading_page
+  thermostat_ui_antiburn_schedule_enabled: 'false'
 
 packages:
   thermostat-display-ui: !include packages/thermostat/display-ui.esp.yaml
@@ -75,11 +76,4 @@ touchscreen:
     update_interval: 64ms  # Slightly slower to smooth drag processing
     on_release:
       then:
-        - if:
-            condition: lvgl.is_paused
-            then:
-              - logger.log:
-                  level: DEBUG
-                  format: "[idle] LVGL resuming"
-              - lvgl.resume:
-              - lvgl.widget.redraw:
+        - script.execute: resume_display_for_interaction

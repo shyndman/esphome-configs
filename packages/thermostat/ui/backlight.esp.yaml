@@ -1,0 +1,200 @@
+globals:
+  - id: lvgl_idle_sleep_active
+    type: bool
+    initial_value: 'false'
+  - id: antiburn_active
+    type: bool
+    initial_value: 'false'
+  - id: main_page_boot_resume_done
+    type: bool
+    initial_value: 'false'
+  - id: backlight_night_mode
+    type: bool
+    initial_value: 'false'
+
+script:
+  - id: resume_display_for_interaction
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(antiburn_active);'
+          then:
+            - logger.log:
+                level: DEBUG
+                format: "[idle] Input detected while antiburn active; turning it off"
+            - switch.turn_off: switch_antiburn
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(lvgl_idle_sleep_active);'
+                then:
+                  - lambda: |-
+                      ESP_LOGD("idle", "Input detected; clearing idle sleep flag");
+                      id(lvgl_idle_sleep_active) = false;
+            - if:
+                condition: lvgl.is_paused
+                then:
+                  - logger.log:
+                      level: DEBUG
+                      format: "[idle] LVGL resuming"
+                  - lvgl.resume:
+                  - lvgl.widget.redraw:
+            - lambda: |-
+                auto *disp = lv_disp_get_default();
+                if (disp != nullptr) {
+                  lv_disp_trig_activity(disp);
+                  ESP_LOGD("idle", "LVGL activity triggered");
+                }
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(backlight_night_mode) ? 0.7f : 1.0f;'
+  - id: handle_main_page_loaded
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(main_page_boot_resume_done);'
+          then:
+            - lambda: |-
+                id(main_page_boot_resume_done) = true;
+                id(lvgl_idle_sleep_active) = false;
+            - logger.log:
+                level: DEBUG
+                format: "[idle] Main page first render; ensuring LVGL is active"
+            - script.execute: resume_display_for_interaction
+  - id: apply_daypart_brightness
+    mode: single
+    then:
+      - if:
+          condition:
+            light.is_on: display_backlight
+          then:
+            - light.turn_on:
+                id: display_backlight
+                brightness: !lambda 'return id(backlight_night_mode) ? 0.7f : 1.0f;'
+  - id: update_backlight_daypart
+    mode: single
+    then:
+      - lambda: |-
+          auto now = id(thermostat_antiburn_time).now();
+          if (!now.is_valid()) {
+            ESP_LOGV("daypart", "Time unavailable; skipping backlight daypart update");
+            return;
+          }
+          const int minutes_since_midnight = now.hour * 60 + now.minute;
+          const bool night = minutes_since_midnight < 390;
+          if (night != id(backlight_night_mode)) {
+            id(backlight_night_mode) = night;
+            ESP_LOGD("daypart", "Backlight daypart -> %s", night ? "overnight" : "daytime");
+            id(apply_daypart_brightness).execute();
+          }
+
+number:
+  - platform: template
+    name: "${friendly_name} Screen Timeout"
+    id: display_timeout
+    unit_of_measurement: "s"
+    optimistic: true
+    restore_value: true
+    initial_value: 45
+    min_value: 10
+    max_value: 180
+    step: 5
+    mode: box
+
+switch:
+  - platform: template
+    name: "${friendly_name} LCD Antiburn"
+    id: switch_antiburn
+    icon: mdi:television-shimmer
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    lambda: |-
+      return id(antiburn_active);
+    turn_on_action:
+      - logger.log:
+          level: INFO
+          format: "[antiburn] Starting pixel training"
+      - lambda: |-
+          id(antiburn_active) = true;
+          id(lvgl_idle_sleep_active) = false;
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - lvgl.pause:
+          show_snow: true
+      - light.turn_off: display_backlight
+      - switch.template.publish:
+          id: switch_antiburn
+          state: ON
+    turn_off_action:
+      - logger.log:
+          level: INFO
+          format: "[antiburn] Stopping pixel training"
+      - lambda: |-
+          id(antiburn_active) = false;
+          id(lvgl_idle_sleep_active) = false;
+      - if:
+          condition: lvgl.is_paused
+          then:
+            - lvgl.resume:
+            - lvgl.widget.redraw:
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda 'return id(backlight_night_mode) ? 0.7f : 1.0f;'
+      - switch.template.publish:
+          id: switch_antiburn
+          state: OFF
+
+time:
+  - platform: homeassistant
+    id: thermostat_antiburn_time
+    timezone: America/Toronto
+    on_time_sync:
+      then:
+        - script.execute: update_backlight_daypart
+    on_time:
+      - hours: 0
+        minutes: 0
+        seconds: 0
+        then:
+          - script.execute: update_backlight_daypart
+      - hours: 6
+        minutes: 30
+        seconds: 0
+        then:
+          - script.execute: update_backlight_daypart
+      - hours: 2,3,4,5
+        minutes: 5
+        seconds: 0
+        then:
+          - if:
+              condition:
+                lambda: 'return ${thermostat_ui_antiburn_schedule_enabled};'
+              then:
+                - logger.log:
+                    level: INFO
+                    format: "[antiburn] Scheduled start"
+                - switch.turn_on: switch_antiburn
+      - hours: 2,3,4,5
+        minutes: 35
+        seconds: 0
+        then:
+          - if:
+              condition:
+                lambda: 'return ${thermostat_ui_antiburn_schedule_enabled};'
+              then:
+                - logger.log:
+                    level: INFO
+                    format: "[antiburn] Scheduled stop"
+                - switch.turn_off: switch_antiburn
+
+esphome:
+  on_boot:
+    - priority: -500
+      then:
+        - script.execute: update_backlight_daypart
