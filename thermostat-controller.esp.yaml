@@ -329,10 +329,12 @@ light:
     restore_mode: ALWAYS_OFF
     # color_correct: [10%, 10%, 10%, 10%]
     effects:
-      - flicker:
-          name: 'spooky'
-          alpha: 92%
-          intensity: 9%
+      - pulse:
+          name: 'pulse'
+          transition_length: 0.5s
+          update_interval: 0.5s
+          min_brightness: 0%
+          max_brightness: 8%
 
 script:
   - id: update_hvac_action_led
@@ -344,26 +346,26 @@ script:
             return;
           }
           auto call = id(hvac_action_led).turn_on();
-          call.set_effect("spooky");
+          call.set_effect("pulse");
           call.set_color_mode(esphome::light::ColorMode::RGB_WHITE);
 
           // If fan is off, turn off LED and exit early
           if (!id(computed_fan).state) {
-            id(hvac_action_led).turn_off().set_brightness(0.1f).perform();
+            id(hvac_action_led).turn_off().set_brightness(0.08f).perform();
             return;
           }
 
           // Heating mode - white light
           if (id(computed_heat).state) {
-            call.set_rgbw(0.0f, 0.0f, 0.0f, 1.0f).set_brightness(0.1f).perform();
+            call.set_rgbw(0.0f, 0.0f, 0.0f, 1.0f).set_brightness(0.08f).perform();
             return;
           }
 
           // Cooling mode - yellow light
           if (id(computed_ac).state) {
-            call.set_rgb(1.0f, 1.0f, 0.0f).set_brightness(0.1f).perform();
+            call.set_rgb(1.0f, 1.0f, 0.0f).set_brightness(0.08f).perform();
             return;
           }
 
           // Fan only mode - green light
-          call.set_rgb(0.0f, 1.0f, 0.0f).set_brightness(0.1f).perform();
+          call.set_rgb(0.0f, 1.0f, 0.0f).set_brightness(0.08f).perform();
