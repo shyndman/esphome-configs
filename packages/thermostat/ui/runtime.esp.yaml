@@ -57,7 +57,25 @@ globals:
   - id: slider_track_height
     type: int
     initial_value: '600'
-  - id: slider_label_y
+  - id: cooling_label_y
+    type: int
+    initial_value: '496'
+  - id: heating_label_y
+    type: int
+    initial_value: '496'
+  - id: cooling_track_y
+    type: int
+    initial_value: '560'
+  - id: cooling_track_height
+    type: int
+    initial_value: '600'
+  - id: heating_track_y
+    type: int
+    initial_value: '680'
+  - id: heating_track_height
+    type: int
+    initial_value: '600'
+  - id: setpoint_group_y
     type: int
     initial_value: '496'
   - id: load_timeout_enabled
@@ -160,6 +178,34 @@ script:
             char buffer[8];
             snprintf(buffer, sizeof(buffer), ".%d", fractional);
             return std::string(buffer);
+  - id: position_setpoint_labels
+    mode: restart
+    then:
+      - lambda: |-
+          const int base = std::min(id(cooling_label_y), id(heating_label_y));
+          id(setpoint_group_y) = base;
+      - lvgl.widget.update:
+          id: setpoint_group
+          y: !lambda return id(setpoint_group_y);
+      - lvgl.widget.update:
+          id: cooling_setpoint_container
+          translate_y: !lambda return id(cooling_label_y) - id(setpoint_group_y);
+      - lvgl.widget.update:
+          id: heating_setpoint_container
+          translate_y: !lambda return id(heating_label_y) - id(setpoint_group_y);
+  - id: ensure_setpoint_z_order
+    mode: restart
+    then:
+      - lambda: |-
+          auto parent = lv_obj_get_parent(id(cooling_track));
+          if (parent == nullptr) {
+            ESP_LOGW("ui-z", "Cooling track parent missing; skipping reorder");
+            return;
+          }
+          lv_obj_move_to_index(id(cooling_track), 0);
+          lv_obj_move_to_index(id(heating_track), 1);
+          lv_obj_move_to_index(id(track_touch_zone), 2);
+          lv_obj_move_to_index(id(setpoint_group), 3);
       - lvgl.label.update:
           id: heating_setpoint
           text: !lambda |-
@@ -301,7 +347,8 @@ script:
             ESP_LOGI("ui-debug", "%s: pos=(%d,%d) size=%dx%d opa=%u bg=0x%06X",
                      name, x, y, w, h, opa, bg_hex & 0xFFFFFF);
           };
-          log_obj("temperature_track", id(temperature_track));
+          log_obj("cooling_track", id(cooling_track));
+          log_obj("heating_track", id(heating_track));
           log_obj("setpoint_group", id(setpoint_group));
           log_obj("action_bar", id(action_bar));
           log_obj("weather_group", id(weather_group));
@@ -309,12 +356,13 @@ script:
           log_obj("room_group", id(room_group));
           const char *cool_text = id(cooling_setpoint) ? lv_label_get_text(id(cooling_setpoint)) : "<null>";
           const char *heat_text = id(heating_setpoint) ? lv_label_get_text(id(heating_setpoint)) : "<null>";
-          ESP_LOGI("ui-debug", "setpoints cooling=%s heating=%s track_y=%d track_height=%d label_y=%d",
+          ESP_LOGI("ui-debug", "setpoints cooling=%s heating=%s track_y=%d track_height=%d cool_label_y=%d heat_label_y=%d",
                    cool_text,
                    heat_text,
                    id(track_y_position),
                    id(slider_track_height),
-                   id(slider_label_y));
+                   id(cooling_label_y),
+                   id(heating_label_y));
   - id: debug_apply_outline_width
     mode: restart
     parameters:
@@ -347,7 +395,8 @@ script:
             {"heating_setpoint_container", id(heating_setpoint_container)},
             {"heating_setpoint", id(heating_setpoint)},
             {"heating_setpoint_fraction", id(heating_setpoint_fraction)},
-            {"temperature_track", id(temperature_track)},
+            {"cooling_track", id(cooling_track)},
+            {"heating_track", id(heating_track)},
             {"track_touch_zone", id(track_touch_zone)},
             {"action_bar", id(action_bar)},
             {"mode_icon", id(mode_icon)},
@@ -366,12 +415,16 @@ script:
             lv_obj_set_style_outline_width(info.obj, outline, LV_PART_MAIN);
             lv_coord_t width = lv_obj_get_width(info.obj);
             lv_coord_t height = lv_obj_get_height(info.obj);
+            lv_coord_t x = lv_obj_get_x(info.obj);
+            lv_coord_t y = lv_obj_get_y(info.obj);
             lv_coord_t pad_top = lv_obj_get_style_pad_top(info.obj, LV_PART_MAIN);
             lv_coord_t pad_bottom = lv_obj_get_style_pad_bottom(info.obj, LV_PART_MAIN);
             lv_coord_t pad_left = lv_obj_get_style_pad_left(info.obj, LV_PART_MAIN);
             lv_coord_t pad_right = lv_obj_get_style_pad_right(info.obj, LV_PART_MAIN);
-            ESP_LOGI("ui-outline", "%s size=%dx%d outline=%d",
+            ESP_LOGI("ui-outline", "%s pos=(%d,%d) size=%dx%d outline=%d",
                      info.name,
+                     static_cast<int>(x),
+                     static_cast<int>(y),
                      static_cast<int>(width),
                      static_cast<int>(height),
                      outline);
@@ -392,71 +445,85 @@ script:
     then:
       - lambda: |-
           const bool heating_active = id(active_setpoint_target) == ${thermostat_ui_target_heating};
-          const float target_temp = heating_active ? id(heating_setpoint_temp) : id(cooling_setpoint_temp);
-          auto state = thermostat::slider::compute_state_from_temperature(target_temp);
+          auto cooling_state = thermostat::slider::compute_state_from_temperature(id(cooling_setpoint_temp));
+          auto heating_state = thermostat::slider::compute_state_from_temperature(id(heating_setpoint_temp));
+          const auto &active_state = heating_active ? heating_state : cooling_state;
 
-          lv_obj_t *track = id(temperature_track);
-          lv_obj_t *group = id(setpoint_group);
+          id(track_y_position) = active_state.track_y;
+          id(slider_track_height) = active_state.track_height;
+          id(last_touch_y) = active_state.track_y;
 
-          const int32_t start_y = lv_obj_get_y(track);
-          const int32_t start_height = lv_obj_get_height(track);
-          const int32_t start_label_y = lv_obj_get_y(group);
-
-          id(track_y_position) = state.track_y;
-          id(slider_track_height) = state.track_height;
-          id(slider_label_y) = state.label_y;
-          id(last_touch_y) = state.track_y;
+          id(cooling_track_y) = cooling_state.track_y;
+          id(cooling_track_height) = cooling_state.track_height;
+          id(cooling_label_y) = cooling_state.label_y;
+          id(heating_track_y) = heating_state.track_y;
+          id(heating_track_height) = heating_state.track_height;
+          id(heating_label_y) = heating_state.label_y;
 
           const bool animate = !id(is_dragging) && !id(suppress_setpoint_animation);
 
-          lv_anim_del(track, nullptr);
-          lv_anim_del(group, nullptr);
+          lv_obj_t *cool_track = id(cooling_track);
+          lv_obj_t *heat_track = id(heating_track);
 
-          if (animate) {
+          const int32_t cooling_start_y = lv_obj_get_y(cool_track);
+          const int32_t cooling_start_height = lv_obj_get_height(cool_track);
+          const int32_t heating_start_y = lv_obj_get_y(heat_track);
+          const int32_t heating_start_height = lv_obj_get_height(heat_track);
+
+          lv_anim_del(cool_track, nullptr);
+          lv_anim_del(heat_track, nullptr);
+
+          auto animate_track = [&](lv_obj_t *obj,
+                                   int32_t start_y,
+                                   int32_t end_y,
+                                   int32_t start_h,
+                                   int32_t end_h) {
+            if (!animate) {
+              lv_obj_set_y(obj, end_y);
+              lv_obj_set_height(obj, end_h);
+              return;
+            }
             lv_anim_t anim_y;
             lv_anim_init(&anim_y);
-            lv_anim_set_var(&anim_y, track);
-            lv_anim_set_values(&anim_y, start_y, state.track_y);
+            lv_anim_set_var(&anim_y, obj);
+            lv_anim_set_values(&anim_y, start_y, end_y);
             lv_anim_set_time(&anim_y, 120);
             lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
-              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
+            lv_anim_set_exec_cb(&anim_y, [](void *o, int32_t value) {
+              lv_obj_set_y(static_cast<lv_obj_t *>(o), value);
             });
             lv_anim_start(&anim_y);
 
-            lv_anim_t anim_height;
-            lv_anim_init(&anim_height);
-            lv_anim_set_var(&anim_height, track);
-            lv_anim_set_values(&anim_height, start_height, state.track_height);
-            lv_anim_set_time(&anim_height, 120);
-            lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
-              lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
+            lv_anim_t anim_h;
+            lv_anim_init(&anim_h);
+            lv_anim_set_var(&anim_h, obj);
+            lv_anim_set_values(&anim_h, start_h, end_h);
+            lv_anim_set_time(&anim_h, 120);
+            lv_anim_set_path_cb(&anim_h, lv_anim_path_ease_in_out);
+            lv_anim_set_exec_cb(&anim_h, [](void *o, int32_t value) {
+              lv_obj_set_height(static_cast<lv_obj_t *>(o), value);
             });
-            lv_anim_start(&anim_height);
+            lv_anim_start(&anim_h);
+          };
 
-            lv_anim_t anim_label;
-            lv_anim_init(&anim_label);
-            lv_anim_set_var(&anim_label, group);
-            lv_anim_set_values(&anim_label, start_label_y, state.label_y);
-            lv_anim_set_time(&anim_label, 120);
-            lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
-              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
-            });
-            lv_anim_start(&anim_label);
-          } else {
-            lv_obj_set_y(track, state.track_y);
-            lv_obj_set_height(track, state.track_height);
-            lv_obj_set_y(group, state.label_y);
-          }
+          animate_track(cool_track, cooling_start_y, cooling_state.track_y, cooling_start_height, cooling_state.track_height);
+          animate_track(heat_track, heating_start_y, heating_state.track_y, heating_start_height, heating_state.track_height);
+
           id(suppress_setpoint_animation) = false;
+      - script.execute: position_setpoint_labels
+      - script.execute: ensure_setpoint_z_order
       - lvgl.widget.update:
-          id: temperature_track
+          id: cooling_track
+          bg_color: !lambda |-
+            return id(active_setpoint_target) == ${thermostat_ui_target_cooling}
+                       ? lv_color_hex(0x2776cc)
+                       : lv_color_hex(0x303030);
+      - lvgl.widget.update:
+          id: heating_track
           bg_color: !lambda |-
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
-                       : lv_color_hex(0x2776cc);
+                       : lv_color_hex(0x303030);
       - lvgl.widget.update:
           id: cooling_setpoint
           text_color: !lambda |-
@@ -481,10 +548,7 @@ script:
             return id(active_setpoint_target) == ${thermostat_ui_target_heating}
                        ? lv_color_hex(0xe1752e)
                        : lv_color_hex(0x4a4a4a);
-      - lambda: |-
-          // Keep the setpoint text behind the track to let the bar trim any overlap.
-          lv_obj_move_background(id(setpoint_group));
-          lv_obj_move_background(id(track_touch_zone));
+      - script.execute: ensure_setpoint_z_order
       - script.execute: refresh_setpoint_labels
       - script.execute: update_mode_icon
       - script.execute: update_fan_animation
@@ -510,64 +574,36 @@ script:
           id(active_setpoint_target) = target;
           id(track_y_position) = new_state.track_y;
           id(slider_track_height) = new_state.track_height;
-          id(slider_label_y) = new_state.label_y;
           id(last_touch_y) = new_state.track_y;
 
-          lv_obj_t *track = id(temperature_track);
-          lv_obj_t *group = id(setpoint_group);
-          const int32_t start_y = lv_obj_get_y(track);
-          const int32_t start_height = lv_obj_get_height(track);
-          const int32_t start_label_y = lv_obj_get_y(group);
+          if (new_heating) {
+            id(heating_track_y) = new_state.track_y;
+            id(heating_track_height) = new_state.track_height;
+            id(heating_label_y) = new_state.label_y;
+          } else {
+            id(cooling_track_y) = new_state.track_y;
+            id(cooling_track_height) = new_state.track_height;
+            id(cooling_label_y) = new_state.label_y;
+          }
 
-          lv_anim_del(track, nullptr);
           lv_anim_del(id(cooling_setpoint), nullptr);
           lv_anim_del(id(heating_setpoint), nullptr);
 
           if (!id(suppress_setpoint_animation)) {
-            lv_anim_t anim_y;
-            lv_anim_init(&anim_y);
-            lv_anim_set_var(&anim_y, track);
-            lv_anim_set_values(&anim_y, start_y, new_state.track_y);
-            lv_anim_set_time(&anim_y, 120);
-            lv_anim_set_path_cb(&anim_y, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_y, [](void *obj, int32_t value) {
-              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
-            });
-            lv_anim_start(&anim_y);
-
-            lv_anim_t anim_height;
-            lv_anim_init(&anim_height);
-            lv_anim_set_var(&anim_height, track);
-            lv_anim_set_values(&anim_height, start_height, new_state.track_height);
-            lv_anim_set_time(&anim_height, 120);
-            lv_anim_set_path_cb(&anim_height, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_height, [](void *obj, int32_t value) {
-              lv_obj_set_height(static_cast<lv_obj_t *>(obj), value);
-            });
-            lv_anim_start(&anim_height);
-
-            lv_anim_t anim_label;
-            lv_anim_init(&anim_label);
-            lv_anim_set_var(&anim_label, group);
-            lv_anim_set_values(&anim_label, start_label_y, new_state.label_y);
-            lv_anim_set_time(&anim_label, 120);
-            lv_anim_set_path_cb(&anim_label, lv_anim_path_ease_in_out);
-            lv_anim_set_exec_cb(&anim_label, [](void *obj, int32_t value) {
-              lv_obj_set_y(static_cast<lv_obj_t *>(obj), value);
-            });
-            lv_anim_start(&anim_label);
+            // Subtle translation animation handled by LVGL style transitions on update.
           } else {
-            lv_obj_set_y(track, new_state.track_y);
-            lv_obj_set_height(track, new_state.track_height);
-            lv_obj_set_y(group, new_state.label_y);
+            // No-op; translations are updated below.
           }
 
           id(suppress_setpoint_animation) = false;
 
           const uint32_t neutral_color = 0x303030;
-          const uint32_t track_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x2776cc;
-          const uint32_t track_end_color = new_heating ? 0xe1752e : 0x2776cc;
-          thermostat::ui::animate_two_stage_color(track, track_start_color, neutral_color, track_end_color, 60, false);
+          const uint32_t cooling_track_start = (old_target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x303030;
+          const uint32_t heating_track_start = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x303030;
+          const uint32_t cooling_track_end = (target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x303030;
+          const uint32_t heating_track_end = (target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x303030;
+          thermostat::ui::animate_two_stage_color(id(cooling_track), cooling_track_start, neutral_color, cooling_track_end, 60, false);
+          thermostat::ui::animate_two_stage_color(id(heating_track), heating_track_start, neutral_color, heating_track_end, 60, false);
 
           const uint32_t cooling_start_color = (old_target == ${thermostat_ui_target_cooling}) ? 0x2776cc : 0x4a4a4a;
           const uint32_t heating_start_color = (old_target == ${thermostat_ui_target_heating}) ? 0xe1752e : 0x4a4a4a;
@@ -577,6 +613,8 @@ script:
           thermostat::ui::animate_two_stage_color(id(cooling_setpoint_fraction), cooling_start_color, neutral_color, cooling_end_color, 60, true);
           thermostat::ui::animate_two_stage_color(id(heating_setpoint), heating_start_color, neutral_color, heating_end_color, 60, true);
           thermostat::ui::animate_two_stage_color(id(heating_setpoint_fraction), heating_start_color, neutral_color, heating_end_color, 60, true);
+      - script.execute: position_setpoint_labels
+      - script.execute: ensure_setpoint_z_order
       - script.execute: refresh_setpoint_labels
       - script.execute: update_mode_icon
   - id: prime_drag_from_touch
@@ -655,22 +693,35 @@ script:
           id(track_y_position) = clamped_state.track_y;
           id(last_touch_y) = clamped_state.track_y;
           id(slider_track_height) = clamped_state.track_height;
-          id(slider_label_y) = clamped_state.label_y;
           if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+            id(heating_track_y) = clamped_state.track_y;
+            id(heating_track_height) = clamped_state.track_height;
+            id(heating_label_y) = clamped_state.label_y;
             id(heating_setpoint_temp) = clamped_state.setpoint;
           } else {
+            id(cooling_track_y) = clamped_state.track_y;
+            id(cooling_track_height) = clamped_state.track_height;
+            id(cooling_label_y) = clamped_state.label_y;
             id(cooling_setpoint_temp) = clamped_state.setpoint;
           }
 
           id(is_dragging) = true;
           ESP_LOGD("touch", "Begin drag: raw_y=%d, clamped_y=%d, temp=%.1f", raw_y, clamped_state.track_y, clamped_state.setpoint);
-      - lvgl.widget.update:
-          id: temperature_track
-          y: !lambda return id(track_y_position);
-          height: !lambda return id(slider_track_height);
-      - lvgl.widget.update:
-          id: setpoint_group
-          y: !lambda return id(slider_label_y);
+      - if:
+          condition:
+            lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_heating};'
+          then:
+            - lvgl.widget.update:
+                id: heating_track
+                y: !lambda return id(heating_track_y);
+                height: !lambda return id(heating_track_height);
+          else:
+            - lvgl.widget.update:
+                id: cooling_track
+                y: !lambda return id(cooling_track_y);
+                height: !lambda return id(cooling_track_height);
+      - script.execute: position_setpoint_labels
+      - script.execute: ensure_setpoint_z_order
       - script.execute: refresh_setpoint_labels
       - script.execute: update_mode_icon
       - script.execute: update_fan_animation
@@ -902,10 +953,15 @@ interval:
                   id(track_y_position) = clamped_state.track_y;
                   id(last_touch_y) = clamped_state.track_y;
                   id(slider_track_height) = clamped_state.track_height;
-                  id(slider_label_y) = clamped_state.label_y;
                   if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
+                    id(heating_track_y) = clamped_state.track_y;
+                    id(heating_track_height) = clamped_state.track_height;
+                    id(heating_label_y) = clamped_state.label_y;
                     id(heating_setpoint_temp) = clamped_state.setpoint;
                   } else {
+                    id(cooling_track_y) = clamped_state.track_y;
+                    id(cooling_track_height) = clamped_state.track_height;
+                    id(cooling_label_y) = clamped_state.label_y;
                     id(cooling_setpoint_temp) = clamped_state.setpoint;
                   }
 
@@ -916,13 +972,21 @@ interval:
                     id(pending_drag_active) = false;
                   }
                 }
-            - lvgl.widget.update:
-                id: temperature_track
-                y: !lambda return id(track_y_position);
-                height: !lambda return id(slider_track_height);
-            - lvgl.widget.update:
-                id: setpoint_group
-                y: !lambda return id(slider_label_y);
+            - if:
+                condition:
+                  lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_heating};'
+                then:
+                  - lvgl.widget.update:
+                      id: heating_track
+                      y: !lambda return id(heating_track_y);
+                      height: !lambda return id(heating_track_height);
+                else:
+                  - lvgl.widget.update:
+                      id: cooling_track
+                      y: !lambda return id(cooling_track_y);
+                      height: !lambda return id(cooling_track_height);
+            - script.execute: position_setpoint_labels
+            - script.execute: ensure_setpoint_z_order
             - script.execute: refresh_setpoint_labels
   - interval: 750ms
     then:

@@ -61,14 +61,26 @@ sensor:
                   float sanitized = thermostat::slider::clamp_heating(x, id(cooling_setpoint_temp));
                   id(heating_setpoint_temp) = sanitized;
                   ESP_LOGD("setpoint", "Heating sanitized=%.2f (raw=%.2f)", sanitized, x);
+                  auto state = thermostat::slider::compute_state_from_temperature(sanitized);
+                  id(heating_track_y) = state.track_y;
+                  id(heating_track_height) = state.track_height;
+                  id(heating_label_y) = state.label_y;
                   if (id(active_setpoint_target) == ${thermostat_ui_target_heating}) {
-                    auto state = thermostat::slider::compute_state_from_temperature(sanitized);
                     id(track_y_position) = state.track_y;
                     id(slider_track_height) = state.track_height;
-                    id(slider_label_y) = state.label_y;
                     id(last_touch_y) = state.track_y;
                   }
               - script.execute: refresh_setpoint_labels
+              - if:
+                  condition:
+                    lambda: 'return id(active_setpoint_target) != ${thermostat_ui_target_heating};'
+                  then:
+                    - lvgl.widget.update:
+                        id: heating_track
+                        y: !lambda return id(heating_track_y);
+                        height: !lambda return id(heating_track_height);
+                    - script.execute: position_setpoint_labels
+                    - script.execute: ensure_setpoint_z_order
               - if:
                   condition:
                     lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_heating};'
@@ -106,14 +118,26 @@ sensor:
                   float sanitized = thermostat::slider::clamp_cooling(x, id(heating_setpoint_temp));
                   id(cooling_setpoint_temp) = sanitized;
                   ESP_LOGD("setpoint", "Cooling sanitized=%.2f (raw=%.2f)", sanitized, x);
+                  auto state = thermostat::slider::compute_state_from_temperature(sanitized);
+                  id(cooling_track_y) = state.track_y;
+                  id(cooling_track_height) = state.track_height;
+                  id(cooling_label_y) = state.label_y;
                   if (id(active_setpoint_target) == ${thermostat_ui_target_cooling}) {
-                    auto state = thermostat::slider::compute_state_from_temperature(sanitized);
                     id(track_y_position) = state.track_y;
                     id(slider_track_height) = state.track_height;
-                    id(slider_label_y) = state.label_y;
                     id(last_touch_y) = state.track_y;
                   }
               - script.execute: refresh_setpoint_labels
+              - if:
+                  condition:
+                    lambda: 'return id(active_setpoint_target) != ${thermostat_ui_target_cooling};'
+                  then:
+                    - lvgl.widget.update:
+                        id: cooling_track
+                        y: !lambda return id(cooling_track_y);
+                        height: !lambda return id(cooling_track_height);
+                    - script.execute: position_setpoint_labels
+                    - script.execute: ensure_setpoint_z_order
               - if:
                   condition:
                     lambda: 'return id(active_setpoint_target) == ${thermostat_ui_target_cooling};'
