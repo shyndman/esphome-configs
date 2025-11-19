@@ -85,6 +85,18 @@ climate:
     fan_only_action_uses_fan_mode_timer: true
     fan_with_cooling: true
     fan_with_heating: true
+
+    # These exist to indicate capabilities to Home Assistant
+    heat_mode:
+      then:
+        - logger.log: 'Heat mode selected'
+    cool_mode:
+      then:
+        - logger.log: 'Cool mode selected'
+    heat_cool_mode:
+      then:
+        - logger.log: 'Heat/Cool mode selected'
+
     idle_action:
       then:
         - lambda: |-
