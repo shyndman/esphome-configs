@@ -1,0 +1,54 @@
+esphome:
+  platformio_options:
+    build_flags:
+      - -DBOARD_HAS_PSRAM
+      - -Iinclude
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+
+light:
+  - platform: status_led
+    id: status_light
+    name: "Status LED"
+    pin:
+      number: 21
+      inverted: true
+
+esp32:
+  board: esp32-s3-devkitc-1
+  cpu_frequency: 240MHz
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+      CONFIG_LWIP_MAX_SOCKETS: '16'
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+i2c:
+  - id: bus_i2c
+    sda: 8
+    scl: 7
+    scan: true
+    frequency: 400kHz
+
+# Configuration for I2S audio
+i2s_audio:
+  - id: transcription_i2s
+    i2s_lrclk_pin: 46
+    i2s_bclk_pin: 42
+
+# Configuration for the microphone using I2S audio
+microphone:
+  - id: transcription_mic
+    platform: i2s_audio
+    i2s_audio_id: transcription_i2s
+    i2s_din_pin: 41
+    adc_type: external
+    sample_rate: 16000
+    bits_per_sample: 16bit
+    pdm: true
+    channel: left
