@@ -1,13 +1,13 @@
 substitutions:
-  friendly_name: Theoretical Thermostat Climate Controller
-  name: theoretical_thermostat_ctrl
-  udp_audio_host: 192.168.86.38
-  udp_audio_port: '7000'
+  friendly_name: Theoretical Thermostat
+  name: theoretical_thermostat
+  # udp_audio_host: 192.168.86.38
+  # udp_audio_port: '7000'
   hvac_min_off_time: 2min
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
-  sense: !include packages/esp32s3-sense.esp.yaml
+  sense: !include packages/esp32s3-sense-base.esp.yaml
   thermostat-shared: !include packages/thermostat/defaults.esp.yaml
   # The thermostat's climate sensor, which has the ability to "smell". While it
   # detects air quality and bad breath by default, you can train its little
@@ -70,7 +70,7 @@ climate:
     # Home Assistant room temperature sensor is unavailable.
     sensor: effective_target_room_temperature
     humidity_sensor: target_room_humidity
-    heat_deadband: 0.3
+    heat_deadband: 0.2
     heat_overrun: ${thermostat_heat_overrun}
     cool_deadband: 0.3
     cool_overrun: ${thermostat_cool_overrun}
@@ -162,12 +162,12 @@ sensor:
   - platform: homeassistant
     name: Target Room Temperature
     id: target_room_temperature
-    entity_id: sensor.thermostat_target_room_temperature
+    entity_id: sensor.theoretical_thermostat_target_room_temperature
 
   - platform: homeassistant
     name: Target Room Humidity
     id: target_room_humidity
-    entity_id: sensor.thermostat_target_room_humidity
+    entity_id: sensor.theoretical_thermostat_target_room_humidity
 
   - platform: template
     name: Effective Room Temperature
