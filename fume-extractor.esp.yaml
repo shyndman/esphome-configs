@@ -51,26 +51,138 @@ switch:
             id: info_display
 
 sensor:
+  # Home Assistant temperature/humidity for MQ135 correction
+  - platform: homeassistant
+    id: office_temperature
+    entity_id: sensor.office_thermometer_temperature
+    on_value:
+      then:
+        - component.update: info_display
+
+  - platform: homeassistant
+    id: office_humidity
+    entity_id: sensor.office_thermometer_humidity
+
+  # MQ135 CO2 PPM sensor (ADC → filters → PPM)
   - platform: adc
     pin: A0
-    id: gas_voltage
-    name: Gas Voltage
+    id: mq135_co2_ppm
+    name: MQ135 CO2 PPM
+    unit_of_measurement: ppm
+    device_class: carbon_dioxide
+    state_class: measurement
+    accuracy_decimals: 0
     update_interval: 10s
-  - platform: htu21d
-    model: sht21
-    update_interval: 30s
-    temperature:
-      name: "Temperature"
-      id: temperature
-      on_value:
-        - component.update:
-            id: info_display
-    humidity:
-      name: "Humidity"
-      id: humidity
-      on_value:
-        - component.update:
-            id: info_display
+    on_value:
+      then:
+        - component.update: info_display
+    filters:
+      - lambda: |-
+          // x = ADC voltage (0-1V)
+          // MQ135 constants
+          const float PARA = 116.6020682;
+          const float PARB = 2.769034857;
+          const float CORA = 0.00035;
+          const float CORB = 0.02718;
+          const float CORC = 1.39538;
+          const float CORD = 0.0018;
+          const float CORE = -0.003333333;
+          const float CORF = -0.001923077;
+          const float CORG = 1.130128205;
+          const float RZERO = 13.3;  // kOhm, calibration resistance (sensor-specific)
+          const float RLOAD = 10.0;   // kOhm, load resistance
+          const float VCC = 5.0;      // MQ135 supply voltage
+          const float DIVIDER_RATIO = (220.0 + 56.0) / 56.0;  // Voltage divider R8=220K, R9=56K
+
+          if (x <= 0.01) {
+            ESP_LOGW("mq135", "ADC voltage too low: %.3fV", x);
+            return {};
+          }
+
+          // Reverse voltage divider to get sensor output voltage
+          float v_sensor = x * DIVIDER_RATIO;
+          if (v_sensor >= VCC) {
+            ESP_LOGW("mq135", "Sensor voltage >= VCC: %.3fV", v_sensor);
+            return {};
+          }
+
+          // Calculate sensor resistance: Rs = RLOAD * (VCC / V_sensor - 1)
+          float rs = RLOAD * (VCC / v_sensor - 1.0);
+
+          // Get temperature and humidity for correction
+          float t = id(office_temperature).state;
+          float h = id(office_humidity).state;
+          if (std::isnan(t) || std::isnan(h)) {
+            ESP_LOGW("mq135", "Temperature or humidity unavailable");
+            return {};
+          }
+
+          // Calculate correction factor
+          float correction;
+          if (t < 20.0) {
+            correction = CORA * t * t - CORB * t + CORC - (h - 33.0) * CORD;
+          } else {
+            correction = CORE * t + CORF * h + CORG;
+          }
+
+          // Calculate corrected resistance and PPM
+          float corrected_rs = rs / correction;
+          float rzero_estimate = corrected_rs * pow(426.89 / PARA, 1.0 / PARB);
+          float ppm = PARA * pow(corrected_rs / RZERO, -PARB);
+
+          // Log all intermediate values
+          ESP_LOGI("mq135", "v_adc=%.3fV v_sensor=%.3fV rs=%.2fkΩ t=%.1f°C h=%.1f%%",
+                   x, v_sensor, rs, t, h);
+          ESP_LOGI("mq135", "correction=%.4f corrected_rs=%.2fkΩ rzero_est=%.2fkΩ ppm=%.0f",
+                   correction, corrected_rs, rzero_estimate, ppm);
+
+          return ppm;
+
+  # RZero estimate for calibration (recalculates from raw ADC)
+  - platform: template
+    name: MQ135 RZero Estimate
+    id: mq135_rzero
+    unit_of_measurement: kΩ
+    state_class: measurement
+    accuracy_decimals: 2
+    update_interval: 10s
+    lambda: |-
+      const float PARA = 116.6020682;
+      const float PARB = 2.769034857;
+      const float CORA = 0.00035;
+      const float CORB = 0.02718;
+      const float CORC = 1.39538;
+      const float CORD = 0.0018;
+      const float CORE = -0.003333333;
+      const float CORF = -0.001923077;
+      const float CORG = 1.130128205;
+      const float ATMOCO2 = 426.89;
+      const float RLOAD = 10.0;
+      const float VCC = 5.0;
+      const float DIVIDER_RATIO = (220.0 + 56.0) / 56.0;
+
+      // Access raw ADC value before filters
+      float v_adc = id(mq135_co2_ppm).raw_state;
+      if (v_adc <= 0.01) return NAN;
+
+      float v_sensor = v_adc * DIVIDER_RATIO;
+      if (v_sensor >= VCC) return NAN;
+
+      float rs = RLOAD * (VCC / v_sensor - 1.0);
+
+      float t = id(office_temperature).state;
+      float h = id(office_humidity).state;
+      if (std::isnan(t) || std::isnan(h)) return NAN;
+
+      float correction;
+      if (t < 20.0) {
+        correction = CORA * t * t - CORB * t + CORC - (h - 33.0) * CORD;
+      } else {
+        correction = CORE * t + CORF * h + CORG;
+      }
+
+      float corrected_rs = rs / correction;
+      return corrected_rs * pow(ATMOCO2 / PARA, 1.0 / PARB);
 
 display:
   - platform: ssd1306_i2c
@@ -79,11 +191,16 @@ display:
     address: 0x3C
     update_interval: never
     lambda: |-
-      it.printf(0, 0, id(primary), "Fan: %s", id(fan_relay).state ? "On" : "Off");
-      it.printf(0, 27, id(secondary), "%d°C / %d%%", (int) id(temperature).state, (int) id(humidity).state);
+      it.printf(0, 0, id(secondary), "Fan: %s", id(fan_relay).state ? "On" : "Off");
+      it.image(-3, 20, id(temp_icon));
+      it.printf(17, 20, id(secondary), "%d°C", (int) id(office_temperature).state);
+      it.image(64, 20, id(humidity_icon));
+      it.printf(84, 20, id(secondary), "%d%%", (int) id(office_humidity).state);
+      if (!isnan(id(mq135_co2_ppm).state)) {
+        it.printf(0, 40, id(secondary), "%.0f ppm", id(mq135_co2_ppm).state);
+      }
       if (id(wifi_rssi).state <= 0) {
-        it.image(0, 47, id(signal_icon));
-        it.printf(22, 48, id(secondary), "%ddB", (int) id(wifi_rssi).state);
+        it.image(108, 0, id(signal_icon));
       }
 
 image:
@@ -91,6 +208,14 @@ image:
     id: signal_icon
     type: binary
     resize: 20x20
+  - file: mdi:thermometer
+    id: temp_icon
+    type: binary
+    resize: 18x18
+  - file: mdi:water-percent
+    id: humidity_icon
+    type: binary
+    resize: 18x18
 
 font:
   - file:
