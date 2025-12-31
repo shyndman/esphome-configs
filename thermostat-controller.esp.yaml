@@ -70,7 +70,7 @@ climate:
     # Home Assistant room temperature sensor is unavailable.
     sensor: effective_target_room_temperature
     humidity_sensor: target_room_humidity
-    heat_deadband: 0.2
+    heat_deadband: 0.3
     heat_overrun: ${thermostat_heat_overrun}
     cool_deadband: 0.3
     cool_overrun: ${thermostat_cool_overrun}
