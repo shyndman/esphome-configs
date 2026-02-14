@@ -18,6 +18,12 @@ substitutions:
   bme68x_temp_offset: "4"
   bme68x_operating_age: 28d
 
+# external_components:
+#   - source:
+#       type: local
+#       path: /home/shyndman/dev/projects/personal-esphome-components/components
+#     components: [bme68x_bsec2]
+
 bme68x_bsec2_i2c:
   i2c_id: ${bme68x_i2c_id}
   address: ${bme68x_address}
@@ -48,6 +54,9 @@ sensor:
       name: 'BME68x Breath VOC Equivalent'
 
 text_sensor:
+  - platform: bme68x_bsec2
+    iaq_accuracy:
+      name: "BME68x IAQ Accuracy"
   - platform: template
     name: 'BME68x IAQ Classification'
     lambda: |-
