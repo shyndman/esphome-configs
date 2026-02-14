@@ -1,41 +1,81 @@
 # Repository Guidelines
+## Project Overview
+This repository is an ESPHome configuration monorepo for Home Assistant-connected ESP32/ESP8266 devices (lighting, presence, plugs, displays, thermostat control, utility sensors). Top-level `*.esp.yaml` files are deployable device entrypoints; shared behavior is composed from `packages/`.
 
-> Heads-up: if you notice in-progress edits when you hop in, it usually means I'm working on the repo at the same time—feel free to coordinate rather than undoing the changes.
+## Architecture & Data Flow
+- **Composition model:** Device files include reusable package modules via `packages:` + `!include` (example: `thermostat-controller.esp.yaml`, `packages/device-base.esp.yaml`).
+- **Shared base layer:** `packages/device-base.esp.yaml` centralizes Wi-Fi, API, OTA, logging, time sync, diagnostics, and static IP wiring via `packages/device-ip-map.esp.yaml`.
+- **Thermostat stack (package-driven):**
+  - Controller/brain: `thermostat-controller.esp.yaml`
+  - Shared defaults: `packages/thermostat/defaults.esp.yaml`
+- **Data flow pattern:**
+  1. Home Assistant entities feed ESPHome sensors/text/binary sensors (`platform: homeassistant`).
+  2. `on_value`/`on_state` handlers update globals and UI state (LVGL widgets/scripts).
+  3. User interactions or automation scripts write back to HA via `homeassistant.service` (for example `climate.set_temperature`).
+  4. Controller computes final relay states and drives GPIO outputs (`thermostat-controller.esp.yaml`).
+- **Current workspace note:** `thermostat-display.esp.yaml` is currently deleted in the working tree.
 
-## Project Structure & Module Organization
-- Root `*.esp.yaml` files define deployed devices; include `packages/device-base.esp.yaml` plus hardware modules such as `packages/esp32-base.esp.yaml` or `packages/mm-wave-presence-compact.esp.yaml`.
-- Shared building blocks live in `packages/`; update `packages/device-ip-map.esp.yaml` when reserving static addresses, and keep lighting effects under `packages/light-effects/`.
-- Use `scratch/` for prototypes, `archive/` for retired configs, `assets/` for media, and `include/` for partition CSVs; `support/` holds helper sketches referenced by device configs.
+## Key Directories
+- `./` — deployable device configs (`*.esp.yaml`)
+- `packages/` — reusable modules (hardware bases, feature packs, effects)
+- `include/` — C++ helpers and partition CSVs included by ESPHome
+- `assets/` — icons, animation frames, fonts
+- `scripts/` — asset generation and repo sync helpers
+- `scratch/` — prototype/safe experimentation configs
+- `archive/` — retired configs
+- `support/` — auxiliary firmware/sketches
+- `docs/` — design notes and hardware references
 
-## Build, Test & Development Commands
-- `esphome config thermostat-display.esp.yaml` validates syntax, secrets, and substitutions without contacting hardware.
-- `esphome compile <device>.esp.yaml` builds firmware into `build/<device>/`; share the `.bin` from that directory when collaborating.
-- `esphome upload --device /dev/ttyUSB0 <device>.esp.yaml` flashes via USB, while `esphome upload <device>.esp.yaml` performs OTA once trusted.
-- `esphome logs <device>.esp.yaml` tails runtime output, and `esphome clean <device>.esp.yaml` clears cached builds.
+## Development Commands
+- Validate config: `esphome config <device>.esp.yaml`
+- Compile firmware: `esphome compile <device>.esp.yaml`
+- Flash over USB: `esphome upload --device /dev/ttyUSB0 <device>.esp.yaml`
+- Flash OTA: `esphome upload <device>.esp.yaml`
+- Stream logs: `esphome logs <device>.esp.yaml`
+- Clean build artifacts: `esphome clean <device>.esp.yaml`
 
-## Coding Style & Naming Conventions
-- Indent YAML with two spaces and prefer explicit sections over anchors to keep diffs readable.
-- Device and package filenames use kebab-case (`office-ring-light.esp.yaml`); substitutions stay snake_case, and IDs follow ESPHome’s lowercase_with_underscores style.
-- Reference secrets via `!secret` and store sensitive values only in `secrets.yaml`.
+Useful helpers:
+- Generate fan frames: `./scripts/generate-fan-animation-frames.sh`
+- Create sliding text GIF: `uv run scripts/create_sliding_text_gif.py --help`
+- Measure rendered text: `uv run scripts/measure_string.py --help`
 
-## Testing Guidelines
-- Run `esphome config` before every commit and add `esphome compile` when touching shared packages or platform settings.
-- Trial risky work inside `scratch-device.esp.yaml` to isolate OTA devices from regressions.
-- Capture a short `esphome logs` session for new sensors or displays to confirm components boot and memory usage fits the selected partition.
+## Code Conventions & Common Patterns
+- **Formatting:** YAML uses two-space indentation; prefer explicit sections over anchors for readability.
+- **Naming:**
+  - Device/package filenames: kebab-case (`office-ring-light.esp.yaml`)
+  - Substitutions: snake_case (`friendly_name`, `name`, `ip_<device_name>`)
+  - IDs: lowercase_with_underscores (`cooling_setpoint_temp`)
+- **Reuse/composition:** build features as packages, parameterize with `substitutions`, and include from device entrypoints.
+- **State management pattern:**
+  - transient runtime state in `globals`
+  - business/UI transitions in `script` blocks (`mode: restart` / `single`)
+  - event triggers in `on_value`, `on_state`, `on_press`, `interval`
+- **Error/fallback handling in lambdas:** guard invalid inputs (`std::isnan`, null checks), early-return on bad state, and emit targeted logs (`ESP_LOGD/W/I`, `logger.log`).
+- **Async/event model:** event-driven automations, not async/await. Timing via `delay`, `interval`, and component callbacks.
+- **Dependency injection style:** use substitutions and package includes rather than framework DI.
+- **Secrets:** always reference sensitive values with `!secret`; keep secrets only in `secrets.yaml`.
 
-## Commit & Pull Request Guidelines
-- Follow the existing history: concise, imperative commit subjects such as “Remove computationally expensive Bluetooth tracking.”
-- Keep each commit focused; include relevant CLI output in the body when validation or logs motivated the change.
-- Pull requests should name the affected device(s), list touched packages, and call out new secrets or IP assignments; attach screenshots or logs when altering UI or presence sensors.
+## Important Files
+- `packages/device-base.esp.yaml` — base stack used by most devices
+- `packages/device-ip-map.esp.yaml` — centralized static IP substitution map
+- `thermostat-controller.esp.yaml` — thermostat climate control + relay orchestration
+- `packages/thermostat/defaults.esp.yaml` — shared thermostat substitutions and defaults
+- `include/thermostat_slider_state.h` — setpoint/slider math
+- `include/thermostat_ui_animation.h` — LVGL color animation helper
+- `scratch-device.esp.yaml` — safe staging area for risky experiments
 
-## Security & Configuration Tips
-- Keep secrets out of version control; provide `.example` placeholders under `support/` when guidance is required.
-- Select the correct partition CSV from `include/` before enabling large assets or PSRAM-heavy features.
-- Store source animations or icons in `assets/` and note the generator script (`scripts/create_sliding_text_gif.py`) so others can reproduce them.
+## Runtime/Tooling Preferences
+- Primary runtime/toolchain: **ESPHome CLI** (PlatformIO/ESP-IDF configured per device/package).
+- Python helper scripts are first-class tooling; several are `uv` scripts (`#!/usr/bin/env -S uv run --script`).
+- No Node/Bun package manager workflow is defined in this repo.
+- Local `.venv/` is used for tooling dependencies; repo ignores `.venv`, `.esphome/`, `build/`, and `secrets.yaml`.
 
-## Thermostat Display Stack
-- `thermostat-display.esp.yaml` is the deployed LVGL touchscreen on the LilyGO T-Panel S3; it pulls in `packages/thermostat/display-ui.esp.yaml`, which composes shared defaults, assets, runtime scripts, data sources, and the LVGL layout under `packages/thermostat/ui/`.
-- `thermostat-display-desktop.esp.yaml` runs the same UI against SDL display/touch backends for fast iteration on a desktop; it overrides the idle timeout, disables antiburn, and swaps the time source to `host`.
-- Runtime behaviour (animations, slider math, HA service calls) lives in `packages/thermostat/ui/runtime.esp.yaml` with helpers in `include/thermostat_slider_state.h` and `include/thermostat_ui_animation.h`; the LVGL widget tree is defined in `packages/thermostat/ui/layout.esp.yaml`.
-- Home Assistant entities feed the UI through `packages/thermostat/ui/data-sources.esp.yaml`; the matching climate brain is `thermostat-controller.esp.yaml`, which exposes `climate.thermostat_climate_ctrl_climate_control` and the sensors the display expects.
-- For changes, run `esphome config thermostat-display.esp.yaml` (and the desktop variant when tweaking UI) before committing; capture `esphome logs` once on hardware to verify memory and antiburn behaviour.
+## Testing & QA
+- No formal unit-test framework or CI pipeline is defined in-repo.
+- QA is command-driven and hardware-observed:
+  1. `esphome config <device>.esp.yaml` for every change.
+  2. `esphome compile <device>.esp.yaml` when touching shared packages/platform settings.
+  3. `esphome logs <device>.esp.yaml` to verify boot/runtime behavior after deploy.
+- Use `scratch/` or `scratch-device.esp.yaml` for high-risk iteration before touching production device configs.
+- For UI/sensor changes, capture short runtime logs (and screenshots when visual behavior changes) as evidence.
+- Docs mention a desktop thermostat-display simulation flow, but no `thermostat-display-desktop.esp.yaml` file is currently present in this working tree.
