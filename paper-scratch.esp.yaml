@@ -1,0 +1,77 @@
+# Hardware: Goodisplay ESP32-L + GDEP040E01
+
+substitutions:
+  friendly_name: Paper Scratch Device
+  name: scratch_device
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+
+external_components:
+  - source: github://shyndman/personal-esphome-components/
+    components: [epaper_spi]
+
+esp32:
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+esphome:
+  platformio_options:
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+font:
+  - file: "gfonts://Inter@700"
+    id: font1
+    size: 24
+
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO23
+
+display:
+  - platform: epaper_spi
+    id: my_display
+    model: spectra-e6        # reuses the existing Spectra-6 driver class
+    dimensions:
+      width: 400
+      height: 600
+    cs_pin: GPIO27
+    dc_pin: GPIO14
+    busy_pin:
+      number: GPIO13
+      inverted: true
+      mode:
+        input: true
+        pullup: true
+    reset_pin: GPIO12
+    show_test_card: true
+      # inverted: true
+    # rotation: 90°                   # optional: rotate to taste
+    update_interval: 30s
+    # lambda: |-
+    #   // Set font color (Black)
+    #   it.print(10, 10, id(font1), "Seeed EE04 + GDEP040E01");
+    #   it.print(10, 40, id(font1), "ESPHome Config");
+
+    #   // Example of using colors (ACeP supports 7 colors)
+    #   // Colors: BLACK, WHITE, GREEN, BLUE, RED, YELLOW, ORANGE
+    #   it.line(10, 70, 390, 70, Color(255, 0, 0)); // Red Line
+    init_sequence:
+      - delay 30ms
+      - [0xAA, 0x49, 0x55, 0x20, 0x08, 0x09, 0x18]
+      - [0x01, 0x3F]
+      - [0x00, 0x5F, 0x69]
+      - [0x05, 0x40, 0x1F, 0x1F, 0x2C]
+      - [0x08, 0x6F, 0x1F, 0x1F, 0x22]
+      - [0x06, 0x6F, 0x1F, 0x17, 0x17]
+      - [0x03, 0x00, 0x54, 0x00, 0x44]
+      - [0x60, 0x02, 0x00]
+      - [0x30, 0x08]
+      - [0x50, 0x3F]
+      - [0x61, 0x01, 0x90, 0x02, 0x58]
+      - [0xE3, 0x2F]
+      - [0x84, 0x01]
