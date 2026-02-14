@@ -3,59 +3,144 @@ substitutions:
   name: scratch_device
 
 packages:
-  esp32-base: !include packages/esp32-base.esp.yaml
+  # esp32-base: !include packages/esp32-base.esp.yaml
+  esp32s3-zero: !include packages/esp32s3-zero.esp.yaml
 
 esphome:
+  name: "scratch-device"
   platformio_options:
     build_flags: -DBOARD_HAS_PSRAM
     board_build.f_flash: 80000000L
-    board_build.flash_mode: dio
+    board_build.flash_mode: qio
     build_unflags: -Werror=all
     upload_speed: 921600
-
-esp32:
-  board: esp32-s3-devkitc-1
-  variant: esp32s3
-  framework:
-    type: esp-idf
-    sdkconfig_options:
-      COMPILER_OPTIMIZATION_SIZE: y
-
-api:
-  reboot_timeout: 0s
-
 
 logger:
   level: DEBUG
 
-# sensor:
-#   - platform: adc
-#     name: "Touch Test Pin"
-#     id: "touch_test_pin"
-#     pin: 6
-#     accuracy_decimals: 2
-#     update_interval: 1s
+uart:
+  id: radar_uart
+  tx_pin: 12
+  rx_pin: 13
+  stop_bits: 1
+  parity: NONE
+  baud_rate: 256000
 
-esp32_touch:
-  setup_mode: false
-  filter_mode: IIR_16
-  debounce_count: 1
-  noise_threshold: 0
-  jitter_step: 4
-  smooth_mode: IIR_2
-  denoise_grade: BIT4
-  denoise_cap_level: L4
-
-binary_sensor:
-  - platform: esp32_touch
-    id: esp32_touch_pad
-    name: "ESP32 Touch Pad 01"
-    pin: GPIO01
-    threshold: 100
+ld2410:
+  uart_id: radar_uart
 
 sensor:
-  - platform: template
-    name: "Raw touch value"
-    lambda: |-
-        return id(esp32_touch_pad).get_value();
-    update_interval: 3s
+  - platform: ld2410
+    light:
+      name: Light
+    moving_distance:
+      name: Moving Distance
+    still_distance:
+      name: Still Distance
+    moving_energy:
+      name: Move Energy
+    still_energy:
+      name: Still Energy
+    detection_distance:
+      name: Detection Distance
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: Presence
+    has_moving_target:
+      name: Moving Target
+    has_still_target:
+      name: Still Target
+    out_pin_presence_status:
+      name: Out pin presence status
+
+switch:
+  - platform: ld2410
+    engineering_mode:
+      name: Engineering mode
+    bluetooth:
+      name: Control bluetooth
+
+number:
+  - platform: ld2410
+    timeout:
+      name: Timeout
+    light_threshold:
+      name: Light threshold
+    max_move_distance_gate:
+      name: Max move distance gate
+    max_still_distance_gate:
+      name: Max still distance gate
+    g0:
+      move_threshold:
+        name: G0 move threshold
+      still_threshold:
+        name: G0 still threshold
+    g1:
+      move_threshold:
+        name: G1 move threshold
+      still_threshold:
+        name: G1 still threshold
+    g2:
+      move_threshold:
+        name: G2 move threshold
+      still_threshold:
+        name: G2 still threshold
+    g3:
+      move_threshold:
+        name: G3 move threshold
+      still_threshold:
+        name: G3 still threshold
+    g4:
+      move_threshold:
+        name: G4 move threshold
+      still_threshold:
+        name: G4 still threshold
+    g5:
+      move_threshold:
+        name: G5 move threshold
+      still_threshold:
+        name: G5 still threshold
+    g6:
+      move_threshold:
+        name: G6 move threshold
+      still_threshold:
+        name: G6 still threshold
+    g7:
+      move_threshold:
+        name: G7 move threshold
+      still_threshold:
+        name: G7 still threshold
+    g8:
+      move_threshold:
+        name: G8 move threshold
+      still_threshold:
+        name: G8 still threshold
+
+button:
+  - platform: ld2410
+    factory_reset:
+      name: Factory reset
+    restart:
+      name: Restart
+    query_params:
+      name: Query params
+
+text_sensor:
+  - platform: ld2410
+    version:
+      name: Firmware version
+    mac_address:
+      name: MAC address
+
+select:
+  - platform: ld2410
+    distance_resolution:
+      name: Distance resolution
+    baud_rate:
+      name: Baud rate
+    light_function:
+      name: Light function
+    out_pin_level:
+      name: Out pin level
