@@ -1,0 +1,8 @@
+substitutions:
+  friendly_name: Bedroom Spectre Presence
+  name: bedroom_spectre
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+  espectre: !include packages/espectre/c3.esp.yaml
