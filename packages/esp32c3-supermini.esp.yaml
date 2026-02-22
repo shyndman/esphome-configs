@@ -20,6 +20,7 @@ api:
 status_led:
   pin:
     number: 8
+    allow_other_uses: true
 
 wifi:
   power_save_mode: none

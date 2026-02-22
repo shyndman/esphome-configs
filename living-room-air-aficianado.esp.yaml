@@ -1,0 +1,126 @@
+substitutions:
+  friendly_name: Living Room Air Aficianado
+  name: living_room_air_aficianado
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+
+external_components:
+  - source: github://shyndman/personal-esphome-components/
+    components: [bme68x_bsec2]
+
+i2c:
+  - id: bus
+    sda:
+      number: 8
+      allow_other_uses: true
+    scl: 9
+    scan: true
+    sda_pullup_enabled: true
+    scl_pullup_enabled: true
+    frequency: 100kHz
+
+bme68x_bsec2_i2c:
+  id: bme688_module
+  i2c_id: bus
+  address: 0x77
+  model: BME688
+  operating_age: 28d
+  sample_rate: LP
+  supply_voltage: 3.3V
+  temperature_offset: 4
+  state_save_interval: 6h
+  compensation:
+    temperature_source: sht21_temperature
+    humidity_source: sht21_humidity
+
+logger:
+  level: DEBUG
+
+sensor:
+  - platform: sps30
+    i2c_id: bus
+    address: 0x69
+    update_interval: 60s
+    pm_1_0:
+      name: "SPS30 PM <1µm"
+    pm_2_5:
+      name: "SPS30 PM <2.5µm"
+    pm_4_0:
+      name: "SPS30 PM <4µm"
+    pm_10_0:
+      name: "SPS30 PM <10µm"
+    pmc_0_5:
+      name: "SPS30 Number <0.5µm"
+    pmc_1_0:
+      name: "SPS30 Number <1µm"
+    pmc_2_5:
+      name: "SPS30 Number <2.5µm"
+    pmc_4_0:
+      name: "SPS30 Number <4µm"
+    pmc_10_0:
+      name: "SPS30 Number <10µm"
+    pm_size:
+      name: "SPS30 Typical Particle Size"
+  - platform: htu21d
+    i2c_id: bus
+    model: SHT21
+    update_interval: 60s
+    temperature:
+      name: "SHT21 Temperature"
+      id: sht21_temperature
+    humidity:
+      name: "SHT21 Humidity"
+      id: sht21_humidity
+  - platform: bme68x_bsec2
+    bme68x_bsec2_id: bme688_module
+    temperature:
+      name: "BME688 Temperature"
+    pressure:
+      name: "BME688 Pressure"
+    humidity:
+      name: "BME688 Humidity"
+    gas_resistance:
+      name: "BME688 Gas Resistance"
+    iaq:
+      name: "BME688 IAQ"
+      id: living_room_air_aficianado_iaq
+    iaq_static:
+      name: "BME688 IAQ Static"
+    iaq_accuracy:
+      name: "BME688 IAQ Accuracy"
+    co2_equivalent:
+      name: "BME688 CO2e"
+    breath_voc_equivalent:
+      name: "BME688 Breath VOC"
+
+text_sensor:
+  - platform: bme68x_bsec2
+    bme68x_bsec2_id: bme688_module
+    iaq_accuracy:
+      name: "BME688 IAQ Accuracy Status"
+  - platform: template
+    name: "IAQ Classification"
+    lambda: |-
+      if (!id(living_room_air_aficianado_iaq).has_state() || id(living_room_air_aficianado_iaq).state != id(living_room_air_aficianado_iaq).state) {
+        return {"Unavailable"};
+      }
+      const int iaq_value = static_cast<int>(id(living_room_air_aficianado_iaq).state);
+      if (iaq_value <= 50) {
+        return {"Excellent"};
+      } else if (iaq_value <= 100) {
+        return {"Good"};
+      } else if (iaq_value <= 150) {
+        return {"Lightly polluted"};
+      } else if (iaq_value <= 200) {
+        return {"Moderately polluted"};
+      } else if (iaq_value <= 250) {
+        return {"Heavily polluted"};
+      } else if (iaq_value <= 350) {
+        return {"Severely polluted"};
+      } else if (iaq_value <= 500) {
+        return {"Extremely polluted"};
+      } else {
+        return {"Error"};
+      }
