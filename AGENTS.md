@@ -13,7 +13,6 @@ This repository is an ESPHome configuration monorepo for Home Assistant-connecte
   2. `on_value`/`on_state` handlers update globals and UI state (LVGL widgets/scripts).
   3. User interactions or automation scripts write back to HA via `homeassistant.service` (for example `climate.set_temperature`).
   4. Controller computes final relay states and drives GPIO outputs (`thermostat-controller.esp.yaml`).
-- **Current workspace note:** `thermostat-display.esp.yaml` is currently deleted in the working tree.
 
 ## Key Directories
 - `./` — deployable device configs (`*.esp.yaml`)
@@ -79,4 +78,3 @@ Useful helpers:
   3. `esphome logs <device>.esp.yaml` to verify boot/runtime behavior after deploy.
 - Use `scratch/` or `scratch-device.esp.yaml` for high-risk iteration before touching production device configs.
 - For UI/sensor changes, capture short runtime logs (and screenshots when visual behavior changes) as evidence.
-- Docs mention a desktop thermostat-display simulation flow, but no `thermostat-display-desktop.esp.yaml` file is currently present in this working tree.
