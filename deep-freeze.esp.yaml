@@ -1,0 +1,15 @@
+substitutions:
+  friendly_name: 'Deep Freeze Plug'
+  name: 'deep_freeze_plug'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-smart-plug-v2: !include packages/athom-smart-plug-v2.esp.yaml
+
+binary_sensor:
+  - platform: template
+    name: 'Is Compressing?'
+    id: is_compressing
+    device_class: running
+    lambda: |-
+      return id(power_sensor).state > 80;

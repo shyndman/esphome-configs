@@ -1,7 +1,6 @@
 substitutions:
-  friendly_name: 'Dehumidifier Plug'
-  name: 'dehumidifier_plug'
-
+  friendly_name: 'Office Primary Plug'
+  name: 'office_primary_plug'
 
 packages:
   device-base: !include packages/device-base.esp.yaml
