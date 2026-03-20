@@ -44,6 +44,7 @@ light:
   restore_mode: RESTORE_DEFAULT_OFF
   name: "RGB Light"
   ble_client_id: nw_rgb62
+  model: rgb62
   gamma_correct: 1.0
   default_transition_length: 0s
 #  model: rgb62
