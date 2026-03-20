@@ -1,18 +1,24 @@
 substitutions:
  friendly_name: Oven Sensor Suite
  name: oven_sensor_suite
+ reference_resistance: "430.0"
+ rtd_nominal_resistance: "1000.0"
 
 packages:
  esp32-base: !include packages/esp32-base.esp.yaml
  esp32s3-zero: !include packages/esp32s3-zero.esp.yaml
 
 spi:
- clk_pin: 8
- miso_pin: 9
+ clk_pin: 7
+ miso_pin: 8
+ mosi_pin: 9
 
 sensor:
- - platform: max31855
-   name: "Oven Thermocouple"
+ - platform: max31865
+   name: "Oven Temperature"
    id: oven_temperature
-   cs_pin: 7
+   cs_pin: 10
+   reference_resistance: ${reference_resistance}
+   rtd_nominal_resistance: ${rtd_nominal_resistance}
+   rtd_wires: 2
    update_interval: 1s
