@@ -1,235 +1,391 @@
 substitutions:
-  friendly_name: 'Fume Extractor'
+  friendly_name: Fume Extractor
   name: fume_extractor
 
 packages:
-  device-base: !include packages/device-base.esp.yaml
+  esp32-base: !include packages/esp32-base.esp.yaml
+  bme68x: !include
+    file: packages/bme68x.esp.yaml
+    vars:
+      bme68x_i2c_id: bme688_bus
+      bme68x_address: "0x77"
+      bme68x_model: BME688
 
-esp8266:
-  board: esp12e
-  restore_from_flash: true
-  early_pin_init: false
+esphome:
+  platformio_options:
+    build_unflags: -Werror=all
+    board_build.flash_mode: dio
+    board_build.f_flash: 80000000L
+    board_build.f_cpu: 240000000L
+    upload_speed: 921600
 
-wifi:
-  power_save_mode: HIGH
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
 
+psram:
+  mode: octal
+  speed: 80MHz
 
-logger:
-  level: INFO
+external_components:
+  - source: github://shyndman/personal-esphome-components/
+    components: [bme68x_bsec2]
+  - source:
+      type: local
+      path: external_components/buglloc/components
+    components: [axs15231]
 
-preferences:
-  flash_write_interval: 4min
+spi:
+  - id: display_qspi
+    type: quad
+    clk_pin: GPIO17
+    data_pins:
+      - GPIO13
+      - GPIO18
+      - GPIO21
+      - GPIO14
 
 i2c:
-  sda: 4
-  scl: 5
-  scan: false
-
-binary_sensor:
-  - platform: gpio
-    id: fan_toggle
-    name: Fan Toggle
-    pin: 13
-    on_press:
-      then:
-        - switch.toggle:
-            id: fan_relay
-
-switch:
-  - platform: gpio
-    id: fan_relay
-    name: Fan Relay
-    pin: 12
-    restore_mode: ALWAYS_OFF
-    on_turn_on:
-      then:
-        - component.update:
-            id: info_display
-    on_turn_off:
-      then:
-        - component.update:
-            id: info_display
-
-sensor:
-  # Home Assistant temperature/humidity for MQ135 correction
-  - platform: homeassistant
-    id: office_temperature
-    entity_id: sensor.office_thermometer_temperature
-    on_value:
-      then:
-        - component.update: info_display
-
-  - platform: homeassistant
-    id: office_humidity
-    entity_id: sensor.office_thermometer_humidity
-
-  # MQ135 CO2 PPM sensor (ADC → filters → PPM)
-  - platform: adc
-    pin: A0
-    id: mq135_co2_ppm
-    name: MQ135 CO2 PPM
-    unit_of_measurement: ppm
-    device_class: carbon_dioxide
-    state_class: measurement
-    accuracy_decimals: 0
-    update_interval: 10s
-    on_value:
-      then:
-        - component.update: info_display
-    filters:
-      - lambda: |-
-          // x = ADC voltage (0-1V)
-          // MQ135 constants
-          const float PARA = 116.6020682;
-          const float PARB = 2.769034857;
-          const float CORA = 0.00035;
-          const float CORB = 0.02718;
-          const float CORC = 1.39538;
-          const float CORD = 0.0018;
-          const float CORE = -0.003333333;
-          const float CORF = -0.001923077;
-          const float CORG = 1.130128205;
-          const float RZERO = 13.3;  // kOhm, calibration resistance (sensor-specific)
-          const float RLOAD = 10.0;   // kOhm, load resistance
-          const float VCC = 5.0;      // MQ135 supply voltage
-          const float DIVIDER_RATIO = (220.0 + 56.0) / 56.0;  // Voltage divider R8=220K, R9=56K
-
-          if (x <= 0.01) {
-            ESP_LOGW("mq135", "ADC voltage too low: %.3fV", x);
-            return {};
-          }
-
-          // Reverse voltage divider to get sensor output voltage
-          float v_sensor = x * DIVIDER_RATIO;
-          if (v_sensor >= VCC) {
-            ESP_LOGW("mq135", "Sensor voltage >= VCC: %.3fV", v_sensor);
-            return {};
-          }
-
-          // Calculate sensor resistance: Rs = RLOAD * (VCC / V_sensor - 1)
-          float rs = RLOAD * (VCC / v_sensor - 1.0);
-
-          // Get temperature and humidity for correction
-          float t = id(office_temperature).state;
-          float h = id(office_humidity).state;
-          if (std::isnan(t) || std::isnan(h)) {
-            ESP_LOGW("mq135", "Temperature or humidity unavailable");
-            return {};
-          }
-
-          // Calculate correction factor
-          float correction;
-          if (t < 20.0) {
-            correction = CORA * t * t - CORB * t + CORC - (h - 33.0) * CORD;
-          } else {
-            correction = CORE * t + CORF * h + CORG;
-          }
-
-          // Calculate corrected resistance and PPM
-          float corrected_rs = rs / correction;
-          float rzero_estimate = corrected_rs * pow(426.89 / PARA, 1.0 / PARB);
-          float ppm = PARA * pow(corrected_rs / RZERO, -PARB);
-
-          // Log all intermediate values
-          ESP_LOGI("mq135", "v_adc=%.3fV v_sensor=%.3fV rs=%.2fkΩ t=%.1f°C h=%.1f%%",
-                   x, v_sensor, rs, t, h);
-          ESP_LOGI("mq135", "correction=%.4f corrected_rs=%.2fkΩ rzero_est=%.2fkΩ ppm=%.0f",
-                   correction, corrected_rs, rzero_estimate, ppm);
-
-          return ppm;
-
-  # RZero estimate for calibration (recalculates from raw ADC)
-  - platform: template
-    name: MQ135 RZero Estimate
-    id: mq135_rzero
-    unit_of_measurement: kΩ
-    state_class: measurement
-    accuracy_decimals: 2
-    update_interval: 10s
-    lambda: |-
-      const float PARA = 116.6020682;
-      const float PARB = 2.769034857;
-      const float CORA = 0.00035;
-      const float CORB = 0.02718;
-      const float CORC = 1.39538;
-      const float CORD = 0.0018;
-      const float CORE = -0.003333333;
-      const float CORF = -0.001923077;
-      const float CORG = 1.130128205;
-      const float ATMOCO2 = 426.89;
-      const float RLOAD = 10.0;
-      const float VCC = 5.0;
-      const float DIVIDER_RATIO = (220.0 + 56.0) / 56.0;
-
-      // Access raw ADC value before filters
-      float v_adc = id(mq135_co2_ppm).raw_state;
-      if (v_adc <= 0.01) return NAN;
-
-      float v_sensor = v_adc * DIVIDER_RATIO;
-      if (v_sensor >= VCC) return NAN;
-
-      float rs = RLOAD * (VCC / v_sensor - 1.0);
-
-      float t = id(office_temperature).state;
-      float h = id(office_humidity).state;
-      if (std::isnan(t) || std::isnan(h)) return NAN;
-
-      float correction;
-      if (t < 20.0) {
-        correction = CORA * t * t - CORB * t + CORC - (h - 33.0) * CORD;
-      } else {
-        correction = CORE * t + CORF * h + CORG;
-      }
-
-      float corrected_rs = rs / correction;
-      return corrected_rs * pow(ATMOCO2 / PARA, 1.0 / PARB);
-
-display:
-  - platform: ssd1306_i2c
-    id: info_display
-    model: "SSD1306 128x64"
-    address: 0x3C
-    update_interval: never
-    lambda: |-
-      it.printf(0, 0, id(secondary), "Fan: %s", id(fan_relay).state ? "On" : "Off");
-      it.image(-3, 20, id(temp_icon));
-      it.printf(17, 20, id(secondary), "%d°C", (int) id(office_temperature).state);
-      it.image(64, 20, id(humidity_icon));
-      it.printf(84, 20, id(secondary), "%d%%", (int) id(office_humidity).state);
-      if (!isnan(id(mq135_co2_ppm).state)) {
-        it.printf(0, 40, id(secondary), "%.0f ppm", id(mq135_co2_ppm).state);
-      }
-      if (id(wifi_rssi).state <= 0) {
-        it.image(108, 0, id(signal_icon));
-      }
-
-image:
-  - file: mdi:signal-cellular-3
-    id: signal_icon
-    type: binary
-    resize: 20x20
-  - file: mdi:thermometer
-    id: temp_icon
-    type: binary
-    resize: 18x18
-  - file: mdi:water-percent
-    id: humidity_icon
-    type: binary
-    resize: 18x18
+  - id: touchscreen_bus
+    sda: GPIO15
+    scl: GPIO10
+    scan: true
+  - id: bme688_bus
+    sda: GPIO45
+    scl: GPIO46
+    scan: true
+    frequency: 100kHz
 
 font:
   - file:
       type: gfonts
-      family: Roboto
-      weight: 500
-    id: primary
-    size: 20
-    bpp: 1
+      family: Inter
+      weight: 600
+    id: inter_12_semibold
+    size: 12
+    glyphs: "ACIOQV₂e"
+    bpp: 8
   - file:
       type: gfonts
-      family: Roboto
-      weight: 500
-    id: secondary
-    size: 16
-    glyphs: '!"%()+=,-_.:°/?0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz'
-    bpp: 1
+      family: Inter
+      weight: 700
+    id: inter_11_bold
+    size: 11
+    glyphs: "/ACDEGHILMNORSTUVXY"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Inter
+      weight: 600
+    id: inter_11_semibold
+    size: 11
+    glyphs: "CMP°"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Inter
+      weight: 800
+    id: inter_11_extrabold
+    size: 11
+    glyphs: "%"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Mono
+      weight: 700
+    id: space_mono_62_bold
+    size: 62
+    glyphs: "0123456789-"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Grotesk
+      weight: 400
+    id: space_grotesk_56_regular
+    size: 56
+    glyphs: ":"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Mono
+      weight: 700
+    id: space_mono_34_bold
+    size: 34
+    glyphs: "0123456789-"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Grotesk
+      weight: 700
+    id: space_grotesk_26_bold
+    size: 26
+    glyphs: "."
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Mono
+      weight: 700
+    id: space_mono_22_bold
+    size: 22
+    glyphs: "0123456789-"
+    bpp: 8
+  - file:
+      type: gfonts
+      family: Space Grotesk
+      weight: 700
+    id: space_grotesk_18_bold
+    size: 18
+    glyphs: "."
+    bpp: 8
+
+image:
+  - file: assets/fume-extractor-temperature-icon.png
+    id: temperature_icon
+    type: RGB
+    transparency: alpha_channel
+    resize: 16x16
+  - file: assets/fume-extractor-humidity-icon.png
+    id: humidity_icon
+    type: RGB
+    transparency: alpha_channel
+    resize: 16x16
+
+display:
+  - platform: axs15231
+    id: main_display
+    spi_id: display_qspi
+    backlight_pin: GPIO1
+    update_interval: never
+    dimensions:
+      width: 180
+      height: 640
+    cs_pin: GPIO12
+    reset_pin: GPIO16
+    rotation: 90
+    auto_clear_enabled: true
+    lambda: |-
+      it.fill(Color::BLACK);
+
+      const Color primary_text(0xFA, 0xFA, 0xFA);
+      const Color divider_color(0x27, 0x27, 0x2A);
+      const Color label_color(0x71, 0x71, 0x7A);
+      const Color muted_text(0x3F, 0x3F, 0x46);
+      const Color fan_color(0xEF, 0x44, 0x44);
+
+      auto format_tenths = [](float value, char *whole_text, size_t whole_size, char decimal_text[2]) {
+        const int scaled = static_cast<int>(roundf(value * 10.0f));
+        snprintf(whole_text, whole_size, "%d", scaled / 10);
+        decimal_text[0] = static_cast<char>('0' + std::abs(scaled % 10));
+        decimal_text[1] = '\0';
+      };
+
+      const auto now = id(esptime).now();
+      char clock_text[6] = "--:--";
+      if (now.is_valid()) {
+        snprintf(clock_text, sizeof(clock_text), "%02d:%02d", now.hour, now.minute);
+      }
+
+      const int time_xs[] = {17, 58, 99, 117, 158};
+      char clock_char[2] = {'\0', '\0'};
+      for (size_t i = 0; i < 5; i++) {
+        clock_char[0] = clock_text[i];
+        if (clock_char[0] == ':') {
+          it.print(time_xs[i], 47, id(space_grotesk_56_regular), label_color, TextAlign::TOP_LEFT, clock_char);
+        } else {
+          it.print(time_xs[i], 36, id(space_mono_62_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
+        }
+      }
+
+      if (id(fume_extractor_relay).state) {
+        it.filled_rectangle(97, 122, 19, 10, fan_color);
+        it.filled_circle(97, 127, 5, fan_color);
+        it.filled_circle(116, 127, 5, fan_color);
+      }
+
+      const bool has_iaq = id(iaq).has_state() && !std::isnan(id(iaq).state);
+      const bool has_voc = id(bme68x_breath_voc_equivalent).has_state() && !std::isnan(id(bme68x_breath_voc_equivalent).state);
+      const bool has_co2 = id(bme68x_co2_equivalent).has_state() && !std::isnan(id(bme68x_co2_equivalent).state);
+      const bool has_temp = id(bme68x_temperature).has_state() && !std::isnan(id(bme68x_temperature).state);
+      const bool has_humidity = id(bme68x_humidity).has_state() && !std::isnan(id(bme68x_humidity).state);
+
+      const char *iaq_status_label = "N/A";
+      Color iaq_status_color = muted_text;
+      if (id(iaq_classification).has_state()) {
+        const auto &classification = id(iaq_classification).state;
+        if (classification == "Excellent") {
+          iaq_status_label = "EXCELLENT";
+          iaq_status_color = Color(0x2E, 0x96, 0xE5);
+        } else if (classification == "Good") {
+          iaq_status_label = "GOOD";
+          iaq_status_color = Color(0x00, 0xCC, 0x66);
+        } else if (classification == "Lightly polluted") {
+          iaq_status_label = "LIGHT";
+          iaq_status_color = Color(0xFF, 0xCC, 0x00);
+        } else if (classification == "Moderately polluted") {
+          iaq_status_label = "MODERATE";
+          iaq_status_color = Color(0xFF, 0x88, 0x00);
+        } else if (classification == "Heavily polluted") {
+          iaq_status_label = "HEAVY";
+          iaq_status_color = Color(0xFF, 0x44, 0x00);
+        } else if (classification == "Severely polluted") {
+          iaq_status_label = "SEVERE";
+          iaq_status_color = Color(0xFF, 0x00, 0x00);
+        } else if (classification == "Extremely polluted") {
+          iaq_status_label = "EXTREME";
+          iaq_status_color = Color(0xCC, 0x00, 0xFF);
+        }
+      }
+
+      char iaq_value_text[5] = "--";
+      if (has_iaq) {
+        snprintf(iaq_value_text, sizeof(iaq_value_text), "%d", static_cast<int>(id(iaq).state));
+      }
+
+      char voc_int_text[4] = "-";
+      char voc_dec_text[2] = "-";
+      if (has_voc) {
+        format_tenths(id(bme68x_breath_voc_equivalent).state, voc_int_text, sizeof(voc_int_text), voc_dec_text);
+      }
+
+      char co2_int_text[6] = "-";
+      char co2_dec_text[2] = "-";
+      if (has_co2) {
+        format_tenths(id(bme68x_co2_equivalent).state, co2_int_text, sizeof(co2_int_text), co2_dec_text);
+      }
+
+      char temperature_int_text[4] = "-";
+      char temperature_dec_text[2] = "-";
+      if (has_temp) {
+        format_tenths(id(bme68x_temperature).state, temperature_int_text, sizeof(temperature_int_text), temperature_dec_text);
+      }
+
+      char humidity_int_text[4] = "-";
+      char humidity_dec_text[2] = "-";
+      if (has_humidity) {
+        format_tenths(id(bme68x_humidity).state, humidity_int_text, sizeof(humidity_int_text), humidity_dec_text);
+      }
+
+      const int stats_top = 18;
+      const int divider_height = 142;
+      it.filled_rectangle(213, stats_top, 1, divider_height, divider_color);
+      it.filled_rectangle(315, stats_top, 1, divider_height, divider_color);
+      it.filled_rectangle(398, stats_top, 1, divider_height, divider_color);
+      it.filled_rectangle(517, stats_top, 1, divider_height, divider_color);
+
+      it.print(227, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(227, 65, id(space_mono_34_bold), has_iaq ? primary_text : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(227, 121, id(inter_11_bold), iaq_status_color, TextAlign::TOP_LEFT, iaq_status_label);
+
+      it.print(329, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
+      it.print(329, 65, id(space_mono_34_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
+      it.print(350, 79, id(space_grotesk_26_bold), has_voc ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(358, 65, id(space_mono_34_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
+      it.print(329, 121, id(inter_11_semibold), muted_text, TextAlign::TOP_LEFT, "PPM");
+
+      it.print(420, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
+      it.print(420, 65, id(space_mono_34_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
+      it.print(483, 79, id(space_grotesk_26_bold), has_co2 ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(491, 65, id(space_mono_34_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
+      it.print(420, 121, id(inter_11_semibold), muted_text, TextAlign::TOP_LEFT, "PPM");
+
+      it.image(531, 60, id(temperature_icon));
+      it.print(555, 52, id(space_mono_22_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
+      it.print(582, 60, id(space_grotesk_18_bold), has_temp ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(588, 52, id(space_mono_22_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
+      it.print(610, 62, id(inter_11_semibold), label_color, TextAlign::TOP_LEFT, "°C");
+
+      it.image(531, 101, id(humidity_icon));
+      it.print(555, 93, id(space_mono_22_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
+      it.print(582, 101, id(space_grotesk_18_bold), has_humidity ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(588, 93, id(space_mono_22_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
+      it.print(610, 103, id(inter_11_extrabold), label_color, TextAlign::TOP_LEFT, "%");
+
+interval:
+  - interval: 1min
+    then:
+      - component.update: main_display
+
+sensor:
+  - platform: copy
+    source_id: iaq
+    id: iaq_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+  - platform: copy
+    source_id: bme68x_temperature
+    id: temperature_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+  - platform: copy
+    source_id: bme68x_humidity
+    id: humidity_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+  - platform: copy
+    source_id: bme68x_breath_voc_equivalent
+    id: voc_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+  - platform: copy
+    source_id: bme68x_co2_equivalent
+    id: co2_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+
+text_sensor:
+  - platform: copy
+    source_id: iaq_classification
+    id: iaq_classification_display_refresh
+    internal: true
+    on_value:
+      then:
+        - component.update: main_display
+
+touchscreen:
+  - platform: axs15231
+    id: main_touchscreen
+    display: main_display
+    i2c_id: touchscreen_bus
+    interrupt_pin: GPIO11
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
+    on_touch:
+      - lambda: |-
+          ESP_LOGI(
+            "touch",
+            "x=%d, y=%d, x_raw=%d, y_raw=%d",
+            touch.x,
+            touch.y,
+            touch.x_raw,
+            touch.y_raw
+          );
+
+switch:
+  - platform: gpio
+    id: fume_extractor_relay
+    name: Fume Extractor Relay
+    pin: GPIO43
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - component.update: main_display
+    on_turn_off:
+      then:
+        - component.update: main_display

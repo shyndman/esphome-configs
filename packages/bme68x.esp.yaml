@@ -45,13 +45,19 @@ sensor:
       name: 'BME68x Pressure'
     humidity:
       name: 'BME68x Humidity'
+      id: bme68x_humidity
     iaq:
       name: 'BME68x IAQ'
       id: iaq
+      on_value:
+        then:
+          - component.update: iaq_classification
     co2_equivalent:
       name: 'BME68x CO2 Equivalent'
+      id: bme68x_co2_equivalent
     breath_voc_equivalent:
       name: 'BME68x Breath VOC Equivalent'
+      id: bme68x_breath_voc_equivalent
 
 text_sensor:
   - platform: bme68x_bsec2
@@ -59,6 +65,8 @@ text_sensor:
       name: "BME68x IAQ Accuracy"
   - platform: template
     name: 'BME68x IAQ Classification'
+    id: iaq_classification
+    update_interval: never
     lambda: |-
       if (!id(iaq).has_state() || id(iaq).state != id(iaq).state) {
         return {"Unavailable"};
