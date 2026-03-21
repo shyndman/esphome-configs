@@ -5,3 +5,4 @@
 secrets.yaml
 build
 .venv
+__pycache__
