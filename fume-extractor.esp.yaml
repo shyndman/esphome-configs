@@ -66,33 +66,25 @@ font:
       type: gfonts
       family: Inter
       weight: 600
-    id: inter_12_semibold
-    size: 12
-    glyphs: "ACIOQV₂e"
+    id: inter_15_semibold
+    size: 15
+    glyphs: "AIQ"
     bpp: 8
   - file:
       type: gfonts
       family: Inter
       weight: 700
-    id: inter_11_bold
-    size: 11
-    glyphs: "/ACDEGHILMNORSTUVXY"
+    id: inter_15_bold
+    size: 15
+    glyphs: "/ACDEGHILMNORTVXY"
     bpp: 8
   - file:
       type: gfonts
       family: Inter
       weight: 600
-    id: inter_11_semibold
-    size: 11
-    glyphs: "CMP°"
-    bpp: 8
-  - file:
-      type: gfonts
-      family: Inter
-      weight: 800
-    id: inter_11_extrabold
-    size: 11
-    glyphs: "%"
+    id: inter_14_semibold
+    size: 14
+    glyphs: "%CEHMOPRTV°₂e"
     bpp: 8
   - file:
       type: gfonts
@@ -114,46 +106,26 @@ font:
       type: gfonts
       family: Space Mono
       weight: 700
-    id: space_mono_34_bold
-    size: 34
+    id: space_mono_48_bold
+    size: 48
     glyphs: "0123456789-"
-    bpp: 8
-  - file:
-      type: gfonts
-      family: Space Grotesk
-      weight: 700
-    id: space_grotesk_26_bold
-    size: 26
-    glyphs: "."
     bpp: 8
   - file:
       type: gfonts
       family: Space Mono
       weight: 700
-    id: space_mono_22_bold
-    size: 22
+    id: space_mono_28_bold
+    size: 28
     glyphs: "0123456789-"
     bpp: 8
   - file:
       type: gfonts
-      family: Space Grotesk
+      family: Space Mono
       weight: 700
-    id: space_grotesk_18_bold
+    id: space_mono_18_bold
     size: 18
     glyphs: "."
     bpp: 8
-
-image:
-  - file: assets/fume-extractor-temperature-icon.png
-    id: temperature_icon
-    type: RGB
-    transparency: alpha_channel
-    resize: 16x16
-  - file: assets/fume-extractor-humidity-icon.png
-    id: humidity_icon
-    type: RGB
-    transparency: alpha_channel
-    resize: 16x16
 
 display:
   - platform: axs15231
@@ -173,9 +145,13 @@ display:
 
       const Color primary_text(0xFA, 0xFA, 0xFA);
       const Color divider_color(0x27, 0x27, 0x2A);
-      const Color label_color(0x71, 0x71, 0x7A);
+      const Color accent_text(0x71, 0x71, 0x7A);
+      const Color label_color(0xA6, 0xA6, 0xAC);
+      const Color unit_color(0x5C, 0x5C, 0x63);
       const Color muted_text(0x3F, 0x3F, 0x46);
       const Color fan_color(0xEF, 0x44, 0x44);
+      const Color orbit_color(0x55, 0x55, 0x59);
+      const Color sun_color(0xFA, 0xCC, 0x15);
 
       auto format_tenths = [](float value, char *whole_text, size_t whole_size, char decimal_text[2]) {
         const int scaled = static_cast<int>(roundf(value * 10.0f));
@@ -187,24 +163,39 @@ display:
       const auto now = id(esptime).now();
       char clock_text[6] = "--:--";
       if (now.is_valid()) {
-        snprintf(clock_text, sizeof(clock_text), "%02d:%02d", now.hour, now.minute);
+        int display_hour = now.hour % 12;
+        if (display_hour == 0) {
+          display_hour = 12;
+        }
+        snprintf(clock_text, sizeof(clock_text), "%02d:%02d", display_hour, now.minute);
       }
 
-      const int time_xs[] = {17, 58, 99, 117, 158};
+      it.circle(113, 91, 76, orbit_color);
+      if (now.is_valid()) {
+        static const float kPi = 3.14159265358979323846f;
+        const float day_progress =
+          static_cast<float>(now.hour * 3600 + now.minute * 60 + now.second) / 86400.0f;
+        const float sun_angle = (90.0f + day_progress * 360.0f) * (kPi / 180.0f);
+        const int sun_x = static_cast<int>(roundf(113.0f + cosf(sun_angle) * 76.0f));
+        const int sun_y = static_cast<int>(roundf(91.0f + sinf(sun_angle) * 76.0f));
+        it.filled_circle(sun_x, sun_y, 5, sun_color);
+      }
+
+      const int time_xs[] = {24, 65, 106, 124, 165};
       char clock_char[2] = {'\0', '\0'};
       for (size_t i = 0; i < 5; i++) {
         clock_char[0] = clock_text[i];
         if (clock_char[0] == ':') {
-          it.print(time_xs[i], 47, id(space_grotesk_56_regular), label_color, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], 47, id(space_grotesk_56_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
         } else {
           it.print(time_xs[i], 36, id(space_mono_62_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
         }
       }
 
       if (id(fume_extractor_relay).state) {
-        it.filled_rectangle(97, 122, 19, 10, fan_color);
-        it.filled_circle(97, 127, 5, fan_color);
-        it.filled_circle(116, 127, 5, fan_color);
+        it.filled_rectangle(99, 122, 19, 10, fan_color);
+        it.filled_circle(99, 127, 5, fan_color);
+        it.filled_circle(118, 127, 5, fan_color);
       }
 
       const bool has_iaq = id(iaq).has_state() && !std::isnan(id(iaq).state);
@@ -213,6 +204,8 @@ display:
       const bool has_temp = id(bme68x_temperature).has_state() && !std::isnan(id(bme68x_temperature).state);
       const bool has_humidity = id(bme68x_humidity).has_state() && !std::isnan(id(bme68x_humidity).state);
 
+      // Product-specific IAQ severity mapping; V3 changes placement/typography,
+      // not the classification semantics.
       const char *iaq_status_label = "N/A";
       Color iaq_status_color = muted_text;
       if (id(iaq_classification).has_state()) {
@@ -270,40 +263,39 @@ display:
         format_tenths(id(bme68x_humidity).state, humidity_int_text, sizeof(humidity_int_text), humidity_dec_text);
       }
 
-      const int stats_top = 18;
+      const int divider_y = 18;
       const int divider_height = 142;
-      it.filled_rectangle(213, stats_top, 1, divider_height, divider_color);
-      it.filled_rectangle(315, stats_top, 1, divider_height, divider_color);
-      it.filled_rectangle(398, stats_top, 1, divider_height, divider_color);
-      it.filled_rectangle(517, stats_top, 1, divider_height, divider_color);
+      it.filled_rectangle(227, divider_y, 1, divider_height, divider_color);
+      it.filled_rectangle(370, divider_y, 1, divider_height, divider_color);
+      it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
-      it.print(227, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(227, 65, id(space_mono_34_bold), has_iaq ? primary_text : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
-      it.print(227, 121, id(inter_11_bold), iaq_status_color, TextAlign::TOP_LEFT, iaq_status_label);
+      it.print(238, 31, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(238, 53, id(space_mono_48_bold), has_iaq ? primary_text : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(238, 128, id(inter_15_bold), iaq_status_color, TextAlign::TOP_LEFT, iaq_status_label);
 
-      it.print(329, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
-      it.print(329, 65, id(space_mono_34_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
-      it.print(350, 79, id(space_grotesk_26_bold), has_voc ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(358, 65, id(space_mono_34_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
-      it.print(329, 121, id(inter_11_semibold), muted_text, TextAlign::TOP_LEFT, "PPM");
+      it.print(381, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
+      it.print(399, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(411, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
+      it.print(381, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
+      it.print(423, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
 
-      it.print(420, 44, id(inter_12_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
-      it.print(420, 65, id(space_mono_34_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
-      it.print(483, 79, id(space_grotesk_26_bold), has_co2 ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(491, 65, id(space_mono_34_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
-      it.print(420, 121, id(inter_11_semibold), muted_text, TextAlign::TOP_LEFT, "PPM");
+      it.print(381, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
+      it.print(433, 110, id(space_mono_18_bold), has_co2 ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(445, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
+      it.print(381, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
+      it.print(429, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
 
-      it.image(531, 60, id(temperature_icon));
-      it.print(555, 52, id(space_mono_22_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
-      it.print(582, 60, id(space_grotesk_18_bold), has_temp ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(588, 52, id(space_mono_22_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
-      it.print(610, 62, id(inter_11_semibold), label_color, TextAlign::TOP_LEFT, "°C");
+      it.print(528, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
+      it.print(563, 36, id(space_mono_18_bold), has_temp ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(575, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
+      it.print(528, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "TEMP");
+      it.print(580, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "°C");
 
-      it.image(531, 101, id(humidity_icon));
-      it.print(555, 93, id(space_mono_22_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
-      it.print(582, 101, id(space_grotesk_18_bold), has_humidity ? label_color : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(588, 93, id(space_mono_22_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
-      it.print(610, 103, id(inter_11_extrabold), label_color, TextAlign::TOP_LEFT, "%");
+      it.print(528, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
+      it.print(563, 110, id(space_mono_18_bold), has_humidity ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(575, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
+      it.print(528, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "RH");
+      it.print(557, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "%");
 
 interval:
   - interval: 1min
