@@ -1,0 +1,31 @@
+substitutions:
+  motor_name: ${friendly_name} Motor
+  motor_brake_name: ${motor_name} Brake
+  motor_pin_a: GPIO5
+  motor_pin_b: GPIO6
+
+output:
+  - platform: ledc
+    id: motor_pin_a_output
+    pin: $motor_pin_a
+    frequency: 20000 Hz
+
+  - platform: ledc
+    id: motor_pin_b_output
+    pin: $motor_pin_b
+    frequency: 20000 Hz
+
+fan:
+  - platform: hbridge
+    id: motor_driver
+    name: $motor_name
+    pin_a: motor_pin_a_output
+    pin_b: motor_pin_b_output
+    decay_mode: slow
+    speed_count: 100
+
+button:
+  - platform: template
+    name: $motor_brake_name
+    on_press:
+      - fan.hbridge.brake: motor_driver

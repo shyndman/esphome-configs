@@ -1,0 +1,8 @@
+substitutions:
+  friendly_name: DC Motor Scratch
+  name: dc_motor_scratch
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+  dc-motor: !include packages/dc-motor-drv8833.esp.yaml
