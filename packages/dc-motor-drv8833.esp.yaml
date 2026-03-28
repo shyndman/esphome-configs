@@ -1,5 +1,6 @@
 substitutions:
   motor_name: ${friendly_name} Motor
+  motor_direction_name: ${motor_name} Direction
   motor_brake_name: ${motor_name} Brake
   motor_pin_a: GPIO5
   motor_pin_b: GPIO6
@@ -23,6 +24,21 @@ fan:
     pin_b: motor_pin_b_output
     decay_mode: slow
     speed_count: 100
+
+select:
+  - platform: template
+    name: $motor_direction_name
+    options:
+      - Forward
+      - Reverse
+    lambda: |-
+      return id(motor_driver).direction == fan::FanDirection::REVERSE ? std::string("Reverse") : std::string("Forward");
+    update_interval: 1s
+    set_action:
+      - lambda: |-
+          auto call = id(motor_driver).make_call();
+          call.set_direction(x == "Reverse" ? fan::FanDirection::REVERSE : fan::FanDirection::FORWARD);
+          call.perform();
 
 button:
   - platform: template
