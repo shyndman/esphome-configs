@@ -270,8 +270,8 @@ display:
       it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
       it.print(238, 31, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(238, 53, id(space_mono_48_bold), has_iaq ? primary_text : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
-      it.print(238, 128, id(inter_15_bold), iaq_status_color, TextAlign::TOP_LEFT, iaq_status_label);
+      it.print(238, 53, id(space_mono_48_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(238, 128, id(inter_15_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
 
       it.print(381, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
       it.print(399, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
