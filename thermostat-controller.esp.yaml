@@ -201,7 +201,7 @@ switch:
     optimistic: true
     restore_mode: ALWAYS_OFF
   - platform: template
-    name: A/C Override
+    name: A⁄C Override
     id: override_ac
     optimistic: true
     restore_mode: ALWAYS_OFF
@@ -232,7 +232,7 @@ switch:
   # user interfaces and controlled by automations), is requesting that the fan,
   # heating, or cooling be turned on.
   - platform: template
-    name: A/C Requested
+    name: A⁄C Requested
     id: requested_ac
     internal: true
     optimistic: true
@@ -251,14 +251,14 @@ switch:
     restore_mode: ALWAYS_OFF
 
   # These three are responsible for controlling the actual GPIO pins that signal
-  # the furnace, A/C unit, and fan. Note the interlock to prevent the simultaneous
+  # the furnace, A⁄C unit, and fan. Note the interlock to prevent the simultaneous
   # activation of heating and cooling. Having spent some time with this system,
   # which I imagine is pretty ordinary as far as they go, I have come to respect
   # its designers' commitment to safety and handling of exceptional states. But why
   # tempt fate?
   - platform: gpio
     id: pin_ac
-    name: A/C Relay Switch
+    name: A⁄C Relay Switch
     internal: True
     pin: 1
     interlock: &hvac_interlock_group [pin_ac, pin_heat]
@@ -281,7 +281,7 @@ binary_sensor:
   # loop. They are used to determine the actual state of the HVAC control pins,
   # based on the requested states and any overrides that may be in effect.
   - platform: template
-    name: Computed A/C
+    name: Computed A⁄C
     id: computed_ac
     trigger_on_initial_state: true
     lambda: |-
