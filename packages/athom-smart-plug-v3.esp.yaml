@@ -1,3 +1,6 @@
+packages:
+  device-base: !include ./device-base.esp.yaml
+
 esphome:
   min_version: 2025.7.0
   platformio_options:
@@ -139,31 +142,9 @@ binary_sensor:
       - timing:
           - ON for at least 4s
         then:
-          - button.press: Reset
+          - button.press: restart_button
 
 sensor:
-  - platform: uptime
-    name: "Uptime Sensor"
-    id: uptime_sensor
-    type:
-      timestamp
-    entity_category: "diagnostic"
-
-  - platform: wifi_signal
-    name: "WiFi Signal dB"
-    id: wifi_signal_db
-    update_interval: 60s
-    entity_category: "diagnostic"
-
-  - platform: copy
-    source_id: wifi_signal_db
-    name: "WiFi Signal Percent"
-    filters:
-      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
-    unit_of_measurement: "Signal %"
-    entity_category: "diagnostic"
-    device_class: ""
-
   - platform: cse7766
     id: athom_cse7766
     current:
@@ -173,7 +154,7 @@ sensor:
         - throttle_average: 10s
         - lambda: if (x < 0.060) return 0.0; else return x; # For the chip will report less than 3w power when no load is connected
       on_value_range:
-        - above: 16a
+        - above: 15.0
           then:
             - switch.turn_off: relay
 
@@ -266,4 +247,3 @@ light:
     pin:
       inverted: true
       number: 6
-`

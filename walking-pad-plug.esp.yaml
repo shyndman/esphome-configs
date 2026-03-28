@@ -1,0 +1,14 @@
+substitutions:
+  friendly_name: 'Walking Pad Plug'
+  name: 'walking_pad_plug'
+
+packages:
+  athom-smart-plug-v3: !include packages/athom-smart-plug-v3.esp.yaml
+
+binary_sensor:
+  - platform: template
+    name: 'Is Walking?'
+    id: is_walking
+    device_class: running
+    lambda: |-
+      return id(power_sensor).state > 30;
