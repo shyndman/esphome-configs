@@ -360,6 +360,12 @@ touchscreen:
       mirror_y: true
     on_touch:
       - lambda: |-
+          static uint32_t last_touch_started_ms = 0;
+          constexpr uint32_t kDoubleTapWindowMs = 350;
+          const uint32_t now_ms = millis();
+          const bool is_double_tap =
+            last_touch_started_ms != 0 && (now_ms - last_touch_started_ms) <= kDoubleTapWindowMs;
+
           ESP_LOGI(
             "touch",
             "x=%d, y=%d, x_raw=%d, y_raw=%d",
@@ -369,11 +375,24 @@ touchscreen:
             touch.y_raw
           );
 
+          if (is_double_tap) {
+            ESP_LOGI("touch", "double tap detected, toggling fume extractor relay");
+            id(fume_extractor_relay).toggle();
+            last_touch_started_ms = 0;
+            return;
+          }
+
+          last_touch_started_ms = now_ms;
+
 switch:
   - platform: gpio
     id: fume_extractor_relay
     name: Fume Extractor Relay
-    pin: GPIO43
+    pin:
+      number: GPIO43
+      mode:
+        output: true
+        pulldown: true
     restore_mode: ALWAYS_OFF
     on_turn_on:
       then:
