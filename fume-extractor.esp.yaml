@@ -153,8 +153,8 @@ font:
       type: gfonts
       family: Space Mono
       weight: 700
-    id: space_mono_48_bold
-    size: 48
+    id: space_mono_52_bold
+    size: 52
     glyphs: "0123456789-"
     bpp: 8
   - file:
@@ -199,8 +199,16 @@ display:
       const Color orbit_color(0x55, 0x55, 0x59);
       const Color sun_color(0xFA, 0xCC, 0x15);
 
-      auto format_tenths = [](float value, char *whole_text, size_t whole_size, char decimal_text[2]) {
-        const int scaled = static_cast<int>(roundf(value * 10.0f));
+      auto scale_tenths = [](float value) {
+        return static_cast<int>(roundf(value * 10.0f));
+      };
+
+      auto format_whole = [](float value, char *text, size_t text_size) {
+        snprintf(text, text_size, "%d", static_cast<int>(roundf(value)));
+      };
+
+      auto format_tenths = [&](float value, char *whole_text, size_t whole_size, char decimal_text[2]) {
+        const int scaled = scale_tenths(value);
         snprintf(whole_text, whole_size, "%d", scaled / 10);
         decimal_text[0] = static_cast<char>('0' + std::abs(scaled % 10));
         decimal_text[1] = '\0';
@@ -232,9 +240,9 @@ display:
       for (size_t i = 0; i < 5; i++) {
         clock_char[0] = clock_text[i];
         if (clock_char[0] == ':') {
-          it.print(time_xs[i], 47, id(space_grotesk_56_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], 47+6, id(space_grotesk_56_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
         } else {
-          it.print(time_xs[i], 36, id(space_mono_62_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], 36+6, id(space_mono_62_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
         }
       }
 
@@ -287,14 +295,26 @@ display:
 
       char voc_int_text[4] = "-";
       char voc_dec_text[2] = "-";
+      char voc_text[3] = "-";
+      bool voc_whole_layout = false;
       if (has_voc) {
         format_tenths(id(bme68x_breath_voc_equivalent).state, voc_int_text, sizeof(voc_int_text), voc_dec_text);
+        voc_whole_layout = std::abs(scale_tenths(id(bme68x_breath_voc_equivalent).state) / 10) >= 10;
+        if (voc_whole_layout) {
+          format_whole(id(bme68x_breath_voc_equivalent).state, voc_text, sizeof(voc_text));
+        }
       }
 
       char co2_int_text[6] = "-";
       char co2_dec_text[2] = "-";
+      char co2_text[5] = "-";
+      bool co2_whole_layout = false;
       if (has_co2) {
         format_tenths(id(bme68x_co2_equivalent).state, co2_int_text, sizeof(co2_int_text), co2_dec_text);
+        co2_whole_layout = std::abs(scale_tenths(id(bme68x_co2_equivalent).state) / 10) >= 1000;
+        if (co2_whole_layout) {
+          format_whole(id(bme68x_co2_equivalent).state, co2_text, sizeof(co2_text));
+        }
       }
 
       char temperature_int_text[4] = "-";
@@ -311,37 +331,47 @@ display:
 
       const int divider_y = 18;
       const int divider_height = 142;
-      it.filled_rectangle(230, divider_y, 1, divider_height, divider_color);
+      it.filled_rectangle(241, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(370, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
-      it.print(241, 31, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(241, 53, id(space_mono_48_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
-      it.print(238, 128, id(inter_15_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
+      it.print(247, 27, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(247, 50, id(space_mono_52_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(247, 138, id(inter_15_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
 
-      it.print(381, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
-      it.print(399, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(411, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
-      it.print(381, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
-      it.print(423, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
+      // VOC
+      if (voc_whole_layout) {
+        it.print(401, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_text);
+      } else {
+        it.print(391, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
+        it.print(409, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+        it.print(421, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
+      }
+      it.print(391, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
+      it.print(433, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
+      // CO2e
+      if (co2_whole_layout) {
+        it.print(391, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_text);
+      } else {
+        it.print(391, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
+        it.print(443, 110, id(space_mono_18_bold), has_co2 ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+        it.print(455, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
+      }
+      it.print(391, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
+      it.print(439, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
 
-      it.print(381, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
-      it.print(433, 110, id(space_mono_18_bold), has_co2 ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(445, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
-      it.print(381, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
-      it.print(429, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
-
-      it.print(528, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
-      it.print(563, 36, id(space_mono_18_bold), has_temp ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(575, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
-      it.print(528, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "TEMP");
-      it.print(580, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "°C");
-
-      it.print(528, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
-      it.print(563, 110, id(space_mono_18_bold), has_humidity ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(575, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
-      it.print(528, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "RH");
-      it.print(557, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "%");
+      // Temp
+      it.print(538, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
+      it.print(573, 36, id(space_mono_18_bold), has_temp ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(585, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
+      it.print(538, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "TEMP");
+      it.print(590, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "°C");
+      // Relative Humidity
+      it.print(538, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
+      it.print(573, 110, id(space_mono_18_bold), has_humidity ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(585, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
+      it.print(538, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "RH");
+      it.print(567, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "%");
 
 interval:
   - interval: 1min
