@@ -1,6 +1,10 @@
 substitutions:
   friendly_name: Fume Extractor
   name: fume_extractor
+  display_backlight_idle_brightness: "40%"
+  display_backlight_active_brightness: "100%"
+  display_backlight_transition: 300ms
+  display_backlight_hold: 1min
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
@@ -12,6 +16,15 @@ packages:
       bme68x_model: BME688
 
 esphome:
+  on_boot:
+    priority: -100
+    then:
+      - logger.log:
+          level: DEBUG
+          format: "Setting display backlight to idle brightness"
+      - light.turn_on:
+          id: display_backlight
+          brightness: ${display_backlight_idle_brightness}
   platformio_options:
     build_unflags: -Werror=all
     board_build.flash_mode: dio
@@ -60,6 +73,40 @@ i2c:
     scl: GPIO46
     scan: true
     frequency: 100kHz
+
+output:
+  - platform: ledc
+    id: display_backlight_pwm
+    pin: GPIO1
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    id: display_backlight
+    internal: true
+    output: display_backlight_pwm
+    restore_mode: RESTORE_DEFAULT_ON
+    default_transition_length: ${display_backlight_transition}
+
+script:
+  - id: boost_display_backlight
+    mode: restart
+    then:
+      - logger.log:
+          level: DEBUG
+          format: "Boosting display backlight to active brightness"
+      - light.turn_on:
+          id: display_backlight
+          brightness: ${display_backlight_active_brightness}
+          transition_length: ${display_backlight_transition}
+      - delay: ${display_backlight_hold}
+      - logger.log:
+          level: DEBUG
+          format: "Returning display backlight to idle brightness"
+      - light.turn_on:
+          id: display_backlight
+          brightness: ${display_backlight_idle_brightness}
+          transition_length: ${display_backlight_transition}
 
 font:
   - file:
@@ -131,7 +178,6 @@ display:
   - platform: axs15231
     id: main_display
     spi_id: display_qspi
-    backlight_pin: GPIO1
     update_interval: never
     dimensions:
       width: 180
@@ -265,12 +311,12 @@ display:
 
       const int divider_y = 18;
       const int divider_height = 142;
-      it.filled_rectangle(227, divider_y, 1, divider_height, divider_color);
+      it.filled_rectangle(230, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(370, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
-      it.print(238, 31, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(238, 53, id(space_mono_48_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(241, 31, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(241, 53, id(space_mono_48_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
       it.print(238, 128, id(inter_15_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
 
       it.print(381, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
@@ -359,6 +405,7 @@ touchscreen:
       mirror_x: false
       mirror_y: true
     on_touch:
+      - script.execute: boost_display_backlight
       - lambda: |-
           static uint32_t last_touch_started_ms = 0;
           constexpr uint32_t kDoubleTapWindowMs = 350;
@@ -396,7 +443,9 @@ switch:
     restore_mode: ALWAYS_OFF
     on_turn_on:
       then:
+        - script.execute: boost_display_backlight
         - component.update: main_display
     on_turn_off:
       then:
+        - script.execute: boost_display_backlight
         - component.update: main_display
