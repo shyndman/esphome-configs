@@ -1,6 +1,12 @@
 substitutions:
   friendly_name: Fume Extractor
   name: fume_extractor
+  sun_orbit_center_x: "113"
+  sun_orbit_center_y: "91"
+  sun_orbit_radius: "76"
+  touchscreen_raw_x_min: "-447"
+  touchscreen_raw_x_max: "180"
+  touchscreen_x_max: "639"
   display_backlight_idle_brightness: "40%"
   display_backlight_active_brightness: "100%"
   display_backlight_transition: 300ms
@@ -121,9 +127,9 @@ font:
       type: gfonts
       family: Inter
       weight: 700
-    id: inter_15_bold
-    size: 15
-    glyphs: "/ACDEGHILMNORSTVXY"
+    id: inter_17_bold
+    size: 17
+    glyphs: "/ACDEGHILMNORSTVXQY"
     bpp: 8
   - file:
       type: gfonts
@@ -224,14 +230,14 @@ display:
         snprintf(clock_text, sizeof(clock_text), "%02d:%02d", display_hour, now.minute);
       }
 
-      it.circle(113, 91, 76, orbit_color);
+      it.circle(${sun_orbit_center_x}, ${sun_orbit_center_y}, ${sun_orbit_radius}, orbit_color);
       if (now.is_valid()) {
         static const float kPi = 3.14159265358979323846f;
         const float day_progress =
           static_cast<float>(now.hour * 3600 + now.minute * 60 + now.second) / 86400.0f;
         const float sun_angle = (90.0f + day_progress * 360.0f) * (kPi / 180.0f);
-        const int sun_x = static_cast<int>(roundf(113.0f + cosf(sun_angle) * 76.0f));
-        const int sun_y = static_cast<int>(roundf(91.0f + sinf(sun_angle) * 76.0f));
+        const int sun_x = static_cast<int>(roundf(${sun_orbit_center_x}.0f + cosf(sun_angle) * ${sun_orbit_radius}.0f));
+        const int sun_y = static_cast<int>(roundf(${sun_orbit_center_y}.0f + sinf(sun_angle) * ${sun_orbit_radius}.0f));
         it.filled_circle(sun_x, sun_y, 5, sun_color);
       }
 
@@ -331,21 +337,22 @@ display:
 
       const int divider_y = 18;
       const int divider_height = 142;
-      it.filled_rectangle(241, divider_y, 1, divider_height, divider_color);
+      const int decimal_point_tightening = 2;
+      it.filled_rectangle(232, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(370, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
-      it.print(247, 27, id(inter_15_semibold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(247, 50, id(space_mono_52_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
-      it.print(247, 138, id(inter_15_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
+      it.print(247, 32, id(inter_17_bold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(244, 54, id(space_mono_52_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(247, 136, id(inter_17_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
 
       // VOC
       if (voc_whole_layout) {
         it.print(401, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_text);
       } else {
         it.print(391, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_int_text);
-        it.print(409, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-        it.print(421, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
+        it.print(409 - decimal_point_tightening/2, 36, id(space_mono_18_bold), has_voc ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+        it.print(421 - decimal_point_tightening, 22, id(space_mono_28_bold), has_voc ? primary_text : muted_text, TextAlign::TOP_LEFT, voc_dec_text);
       }
       it.print(391, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "VOC");
       it.print(433, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
@@ -354,22 +361,22 @@ display:
         it.print(391, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_text);
       } else {
         it.print(391, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_int_text);
-        it.print(443, 110, id(space_mono_18_bold), has_co2 ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-        it.print(455, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
+        it.print(443 - decimal_point_tightening/2, 110, id(space_mono_18_bold), has_co2 ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+        it.print(455 - decimal_point_tightening, 96, id(space_mono_28_bold), has_co2 ? primary_text : muted_text, TextAlign::TOP_LEFT, co2_dec_text);
       }
       it.print(391, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "CO₂e");
       it.print(439, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "PPM");
 
       // Temp
       it.print(538, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_int_text);
-      it.print(573, 36, id(space_mono_18_bold), has_temp ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(585, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
+      it.print(573 - decimal_point_tightening/2, 36, id(space_mono_18_bold), has_temp ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(585 - decimal_point_tightening, 22, id(space_mono_28_bold), has_temp ? primary_text : muted_text, TextAlign::TOP_LEFT, temperature_dec_text);
       it.print(538, 65, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "TEMP");
       it.print(590, 65, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "°C");
       // Relative Humidity
       it.print(538, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_int_text);
-      it.print(573, 110, id(space_mono_18_bold), has_humidity ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
-      it.print(585, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
+      it.print(573 - decimal_point_tightening/2, 110, id(space_mono_18_bold), has_humidity ? accent_text : muted_text, TextAlign::TOP_LEFT, ".");
+      it.print(585 - decimal_point_tightening, 96, id(space_mono_28_bold), has_humidity ? primary_text : muted_text, TextAlign::TOP_LEFT, humidity_dec_text);
       it.print(538, 139, id(inter_14_semibold), label_color, TextAlign::TOP_LEFT, "RH");
       it.print(567, 139, id(inter_14_semibold), unit_color, TextAlign::TOP_LEFT, "%");
 
@@ -432,34 +439,66 @@ touchscreen:
     interrupt_pin: GPIO11
     transform:
       swap_xy: true
-      mirror_x: false
+      mirror_x: true
       mirror_y: true
     on_touch:
       - script.execute: boost_display_backlight
       - lambda: |-
           static uint32_t last_touch_started_ms = 0;
+          static bool last_touch_was_in_orbit = false;
           constexpr uint32_t kDoubleTapWindowMs = 350;
+          constexpr int kOrbitCenterX = ${sun_orbit_center_x};
+          constexpr int kOrbitCenterY = ${sun_orbit_center_y};
+          constexpr int kOrbitRadius = ${sun_orbit_radius};
+          auto normalize_touch_x = [](int16_t raw_x) -> int {
+            constexpr int kRawMin = ${touchscreen_raw_x_min};
+            constexpr int kRawMax = ${touchscreen_raw_x_max};
+            constexpr int kScreenXMax = ${touchscreen_x_max};
+
+            if (raw_x <= kRawMin) {
+              return 0;
+            }
+            if (raw_x >= kRawMax) {
+              return kScreenXMax;
+            }
+
+            return static_cast<int>(roundf(
+              static_cast<float>(raw_x - kRawMin) * kScreenXMax /
+              static_cast<float>(kRawMax - kRawMin)
+            ));
+          };
+
+          const int corrected_x = normalize_touch_x(touch.x_raw);
+          const int corrected_y = touch.y;
           const uint32_t now_ms = millis();
           const bool is_double_tap =
             last_touch_started_ms != 0 && (now_ms - last_touch_started_ms) <= kDoubleTapWindowMs;
+          const int dx = corrected_x - kOrbitCenterX;
+          const int dy = corrected_y - kOrbitCenterY;
+          const float touch_distance = sqrtf(static_cast<float>(dx * dx + dy * dy));
+          const bool is_in_orbit = touch_distance <= kOrbitRadius;
 
           ESP_LOGI(
             "touch",
-            "x=%d, y=%d, x_raw=%d, y_raw=%d",
-            touch.x,
-            touch.y,
+            "x=%d, y=%d, x_raw=%d, y_raw=%d, orbit=%s, distance=%.1f",
+            corrected_x,
+            corrected_y,
             touch.x_raw,
-            touch.y_raw
+            touch.y_raw,
+            is_in_orbit ? "yes" : "no",
+            touch_distance
           );
 
-          if (is_double_tap) {
-            ESP_LOGI("touch", "double tap detected, toggling fume extractor relay");
+          if (is_double_tap && last_touch_was_in_orbit && is_in_orbit) {
+            ESP_LOGI("touch", "orbit double tap detected, toggling fume extractor relay");
             id(fume_extractor_relay).toggle();
             last_touch_started_ms = 0;
+            last_touch_was_in_orbit = false;
             return;
           }
 
           last_touch_started_ms = now_ms;
+          last_touch_was_in_orbit = is_in_orbit;
 
 switch:
   - platform: gpio
