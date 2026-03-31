@@ -4,9 +4,6 @@ substitutions:
   sun_orbit_center_x: "113"
   sun_orbit_center_y: "91"
   sun_orbit_radius: "76"
-  touchscreen_raw_x_min: "-447"
-  touchscreen_raw_x_max: "180"
-  touchscreen_x_max: "639"
   display_backlight_idle_brightness: "40%"
   display_backlight_active_brightness: "100%"
   display_backlight_transition: 300ms
@@ -20,6 +17,13 @@ packages:
       bme68x_i2c_id: bme688_bus
       bme68x_address: "0x77"
       bme68x_model: BME688
+
+logger:
+  logs:
+    sensor: WARN
+    text_sensor: WARN
+    light: WARN
+    main: WARN
 
 esphome:
   on_boot:
@@ -450,25 +454,7 @@ touchscreen:
           constexpr int kOrbitCenterX = ${sun_orbit_center_x};
           constexpr int kOrbitCenterY = ${sun_orbit_center_y};
           constexpr int kOrbitRadius = ${sun_orbit_radius};
-          auto normalize_touch_x = [](int16_t raw_x) -> int {
-            constexpr int kRawMin = ${touchscreen_raw_x_min};
-            constexpr int kRawMax = ${touchscreen_raw_x_max};
-            constexpr int kScreenXMax = ${touchscreen_x_max};
-
-            if (raw_x <= kRawMin) {
-              return 0;
-            }
-            if (raw_x >= kRawMax) {
-              return kScreenXMax;
-            }
-
-            return static_cast<int>(roundf(
-              static_cast<float>(raw_x - kRawMin) * kScreenXMax /
-              static_cast<float>(kRawMax - kRawMin)
-            ));
-          };
-
-          const int corrected_x = normalize_touch_x(touch.x_raw);
+          const int corrected_x = touch.x_raw;
           const int corrected_y = touch.y;
           const uint32_t now_ms = millis();
           const bool is_double_tap =
