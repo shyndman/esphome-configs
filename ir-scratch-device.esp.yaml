@@ -1,0 +1,28 @@
+substitutions:
+  friendly_name: IR Scratch Device
+  name: ir_scratch_device
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  zero: !include packages/esp32s3-zero.esp.yaml
+
+logger:
+  level: DEBUG
+
+remote_receiver:
+  pin:
+    number: 7
+    mode:
+      input: true
+      pullup: true
+  dump: all
+  filter: 50us
+  idle: 8ms
+  tolerance: 25%
+  buffer_size: 10kB
+  on_raw:
+    then:
+      - logger.log:
+          level: INFO
+          format: "Captured raw IR frame with %d timings"
+          args: ['x.size()']

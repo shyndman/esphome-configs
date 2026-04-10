@@ -45,6 +45,7 @@ Useful helpers:
   - Device/package filenames: kebab-case (`office-ring-light.esp.yaml`)
   - Substitutions: snake_case (`friendly_name`, `name`, `ip_<device_name>`)
   - IDs: lowercase_with_underscores (`cooling_setpoint_temp`)
+- **New config checklist:** when adding a new deployable config, add its `ip_<device_name>` substitution to `packages/device-ip-map.esp.yaml` before validating or building.
 - **Reuse/composition:** build features as packages, parameterize with `substitutions`, and include from device entrypoints.
 - **State management pattern:**
   - transient runtime state in `globals`
