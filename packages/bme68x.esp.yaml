@@ -15,7 +15,7 @@ substitutions:
   bme68x_i2c_id: bus_i2c
   bme68x_address: "0x77"
   bme68x_model: bme688
-  bme68x_temp_offset: "4"
+  bme68x_temp_offset: "0"
   bme68x_operating_age: 28d
 
 # external_components:
