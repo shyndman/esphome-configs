@@ -26,7 +26,7 @@ This repository is an ESPHome configuration monorepo for Home Assistant-connecte
 - `docs/` — design notes and hardware references
 
 ## Development Commands
-- After making any change, always run `esphome config <device>.esp.yaml` and `esphome build <device>.esp.yaml` locally to ensure the configuration still validates and compiles before moving on.
+- After making any change, always run `esphome config <device>.esp.yaml` and `esphome compile <device>.esp.yaml` locally to ensure the configuration still validates and compiles before moving on.
 - Validate config: `esphome config <device>.esp.yaml`
 - Compile firmware: `esphome compile <device>.esp.yaml`
 - Flash over USB: `esphome upload --device /dev/ttyUSB0 <device>.esp.yaml`
