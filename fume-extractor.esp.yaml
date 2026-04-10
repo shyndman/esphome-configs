@@ -11,6 +11,7 @@ substitutions:
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
+
   bme68x: !include
     file: packages/bme68x.esp.yaml
     vars:
@@ -79,8 +80,8 @@ i2c:
     scl: GPIO10
     scan: true
   - id: bme688_bus
-    sda: GPIO45
-    scl: GPIO46
+    sda: GPIO38
+    scl: GPIO41
     scan: true
     frequency: 100kHz
 
@@ -257,7 +258,7 @@ display:
       }
 
       if (id(fume_extractor_relay).state) {
-        it.filled_rectangle(99, 122, 19, 10, fan_color);
+        it.filled_rectangle(99, 122, 19, 11, fan_color);
         it.filled_circle(99, 127, 5, fan_color);
         it.filled_circle(118, 127, 5, fan_color);
       }
