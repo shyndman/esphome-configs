@@ -80,8 +80,8 @@ i2c:
     scl: GPIO10
     scan: true
   - id: bme688_bus
-    sda: GPIO38
-    scl: GPIO41
+    sda: GPIO43
+    scl: GPIO44
     scan: true
     frequency: 100kHz
 
@@ -492,7 +492,7 @@ switch:
     id: fume_extractor_relay
     name: Fume Extractor Relay
     pin:
-      number: GPIO43
+      number: GPIO41
       mode:
         output: true
         pulldown: true
