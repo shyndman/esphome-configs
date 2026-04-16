@@ -1,0 +1,21 @@
+substitutions:
+  friendly_name: Vape
+  name: vape
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  supermini: !include packages/esp32c3-supermini.esp.yaml
+
+output:
+  - platform: ledc
+    id: passive_buzzer_output
+    pin: 21
+    frequency: 2000Hz
+
+binary_sensor:
+  - platform: gpio
+    id: vape_is_firing
+    name: Vape Firing
+    pin:
+      number: 2
+      mode: INPUT_PULLDOWN
