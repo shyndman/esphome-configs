@@ -451,7 +451,7 @@ touchscreen:
       - lambda: |-
           static uint32_t last_touch_started_ms = 0;
           static bool last_touch_was_in_orbit = false;
-          constexpr uint32_t kDoubleTapWindowMs = 350;
+          constexpr uint32_t kDoubleTapWindowMs = 400;
           constexpr int kOrbitCenterX = ${sun_orbit_center_x};
           constexpr int kOrbitCenterY = ${sun_orbit_center_y};
           constexpr int kOrbitRadius = ${sun_orbit_radius};
