@@ -5,6 +5,7 @@ substitutions:
 packages:
   device-base: !include packages/device-base.esp.yaml
   athom-smart-plug-v2: !include packages/athom-smart-plug-v2.esp.yaml
+  guarded-switch-off: !include packages/guarded-switch-off.esp.yaml
 
 binary_sensor:
   - platform: template

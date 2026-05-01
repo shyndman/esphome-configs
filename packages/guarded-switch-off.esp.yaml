@@ -1,0 +1,62 @@
+substitutions:
+  switch_off_unlock_duration: 20s
+
+globals:
+  - id: switch_off_unlocked
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+script:
+  - id: switch_off_unlock_window
+    mode: restart
+    then:
+      - lambda: |-
+          id(switch_off_unlocked) = true;
+      - delay: ${switch_off_unlock_duration}
+      - lambda: |-
+          id(switch_off_unlocked) = false;
+
+button:
+  - platform: template
+    name: "Unlock Switch Off"
+    id: unlock_switch_off
+    icon: mdi:lock-open-variant
+    entity_category: config
+    on_press:
+      - script.execute: switch_off_unlock_window
+
+binary_sensor:
+  - platform: template
+    name: "Switch Off Unlocked"
+    id: switch_off_unlocked_status
+    icon: mdi:lock-open-variant
+    entity_category: diagnostic
+    lambda: |-
+      return id(switch_off_unlocked);
+
+switch:
+  - id: !extend relay
+    internal: true
+
+  - platform: template
+    id: guarded_relay
+    name: "Switch"
+    icon: mdi:power-socket-us
+    lambda: |-
+      return id(relay).state;
+    turn_on_action:
+      - lambda: |-
+          id(switch_off_unlocked) = false;
+      - switch.turn_on: relay
+    turn_off_action:
+      - if:
+          condition:
+            lambda: |-
+              return id(switch_off_unlocked);
+          then:
+            - lambda: |-
+                id(switch_off_unlocked) = false;
+            - switch.turn_off: relay
+          else:
+            - logger.log: "Refusing to turn off locked switch."
