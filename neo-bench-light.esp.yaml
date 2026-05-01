@@ -1,0 +1,134 @@
+# Neo Bench Light
+#
+# Hardware notes from bench planning:
+# - 24 V / 400 W supply is the main bus.
+# - Lights get their own 24 V -> 12 V buck converter; do not fake 12 V with 24 V PWM.
+# - Five independent CW/WW fixtures need ten PWM channels, so this stays on an original ESP32.
+# - Each fixture measured 1.3 A max at 12 V on the bench supply.
+# - Total light budget is 6.5 A / 78 W at 12 V.
+# - USB-PD modules and stepper drivers stay on the 24 V bus.
+# - Each strip channel is low-side switched with an IRLZ44N.
+# - Gate wiring plan: ESP32 GPIO -> 100-220 ohm resistor -> MOSFET gate, with a 10k pulldown to ground.
+# - Strip positive stays on the 12 V rail; MOSFETs switch the CW/WW returns.
+#
+# Pin notes:
+# - These ten GPIOs are a first-pass mapping for the MOSFET gates.
+# - Keep the PWM grounds and 12 V return wiring stout and out of the tiny logic ground paths.
+# - Revisit the pin map once the controller board and wiring harness are finalized.
+
+substitutions:
+  friendly_name: Neo Bench Light
+  name: neo_bench_light
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+
+esp32:
+  board: esp32dev
+  cpu_frequency: 240MHz
+  framework:
+    type: esp-idf
+
+preferences:
+  flash_write_interval: 30s
+
+logger:
+  level: DEBUG
+
+output:
+  - platform: ledc
+    id: fixture_1_cw_output
+    pin: GPIO16
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_1_ww_output
+    pin: GPIO17
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_2_cw_output
+    pin: GPIO18
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_2_ww_output
+    pin: GPIO19
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_3_cw_output
+    pin: GPIO21
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_3_ww_output
+    pin: GPIO22
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_4_cw_output
+    pin: GPIO23
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_4_ww_output
+    pin: GPIO25
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_5_cw_output
+    pin: GPIO26
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_5_ww_output
+    pin: GPIO27
+    frequency: 1000Hz
+
+light:
+  - platform: cwww
+    id: bench_light_1
+    name: Bench Light 1
+    cold_white: fixture_1_cw_output
+    warm_white: fixture_1_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    default_transition_length: 0s
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: cwww
+    id: bench_light_2
+    name: Bench Light 2
+    cold_white: fixture_2_cw_output
+    warm_white: fixture_2_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    default_transition_length: 0s
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: cwww
+    id: bench_light_3
+    name: Bench Light 3
+    cold_white: fixture_3_cw_output
+    warm_white: fixture_3_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    default_transition_length: 0s
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: cwww
+    id: bench_light_4
+    name: Bench Light 4
+    cold_white: fixture_4_cw_output
+    warm_white: fixture_4_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    default_transition_length: 0s
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: cwww
+    id: bench_light_5
+    name: Bench Light 5
+    cold_white: fixture_5_cw_output
+    warm_white: fixture_5_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    default_transition_length: 0s
+    gamma_correct: 1.0
+    restore_mode: RESTORE_DEFAULT_OFF
