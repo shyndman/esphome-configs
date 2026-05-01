@@ -1,12 +1,13 @@
 substitutions:
   friendly_name: Fume Extractor
   name: fume_extractor
-  sun_orbit_center_x: "113"
-  sun_orbit_center_y: "91"
-  sun_orbit_radius: "90"
-  display_backlight_idle_brightness: "40%"
+  sun_orbit_center_x: "108"
+  sun_orbit_center_y: "89"
+  sun_orbit_radius: "89"
+  display_backlight_idle_brightness: "25%"
   display_backlight_active_brightness: "100%"
   display_backlight_transition: 300ms
+  display_backlight_touch_hold_threshold: 300ms
   display_backlight_hold: 1min
 
 packages:
@@ -20,11 +21,10 @@ packages:
       bme68x_model: BME688
 
 logger:
+  level: DEBUG
   logs:
     sensor: WARN
     text_sensor: WARN
-    light: WARN
-    main: WARN
 
 esphome:
   on_boot:
@@ -100,6 +100,15 @@ light:
     default_transition_length: ${display_backlight_transition}
 
 script:
+  - id: schedule_display_backlight_boost
+    mode: restart
+    then:
+      - logger.log:
+          level: DEBUG
+          format: "Touch detected, waiting for hold threshold before boosting display backlight"
+      - delay: ${display_backlight_touch_hold_threshold}
+      - script.execute: boost_display_backlight
+
   - id: boost_display_backlight
     mode: restart
     then:
@@ -148,16 +157,16 @@ font:
       type: gfonts
       family: Space Mono
       weight: 700
-    id: space_mono_62_bold
-    size: 62
+    id: space_mono_59_bold
+    size: 59
     glyphs: "0123456789-"
     bpp: 8
   - file:
       type: gfonts
       family: Space Grotesk
       weight: 400
-    id: space_grotesk_56_regular
-    size: 56
+    id: space_grotesk_53_regular
+    size: 53
     glyphs: ":"
     bpp: 8
   - file:
@@ -246,14 +255,27 @@ display:
         it.filled_circle(sun_x, sun_y, 5, sun_color);
       }
 
-      const int time_xs[] = {24, 65, 106, 124, 165};
+      constexpr int kClockDigitWidth = 34;
+      constexpr int kClockColonWidth = 10;
+      constexpr int kClockDigitGap = 6;
+      constexpr int kClockColonGap = 5;
+      constexpr int kClockWidth =
+        kClockDigitWidth * 4 + kClockColonWidth + kClockDigitGap * 2 + kClockColonGap * 2;
+      constexpr int kClockLeft = ${sun_orbit_center_x} - (kClockWidth / 2);
+      const int time_xs[] = {
+        kClockLeft + 2,
+        kClockLeft + kClockDigitWidth + kClockDigitGap,
+        kClockLeft + (kClockDigitWidth + kClockDigitGap) * 2,
+        kClockLeft + (kClockDigitWidth + kClockDigitGap) * 2 + kClockColonWidth + kClockColonGap,
+        kClockLeft + (kClockDigitWidth + kClockDigitGap) * 3 + kClockColonWidth + kClockColonGap - 2,
+      };
       char clock_char[2] = {'\0', '\0'};
       for (size_t i = 0; i < 5; i++) {
         clock_char[0] = clock_text[i];
         if (clock_char[0] == ':') {
-          it.print(time_xs[i], 47+6, id(space_grotesk_56_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], 50+6, id(space_grotesk_53_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
         } else {
-          it.print(time_xs[i], 36+6, id(space_mono_62_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], 39+6, id(space_mono_59_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
         }
       }
 
@@ -347,9 +369,9 @@ display:
       it.filled_rectangle(370, divider_y, 1, divider_height, divider_color);
       it.filled_rectangle(517, divider_y, 1, divider_height, divider_color);
 
-      it.print(247, 32, id(inter_17_bold), label_color, TextAlign::TOP_LEFT, "IAQ");
-      it.print(244, 54, id(space_mono_52_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
-      it.print(247, 136, id(inter_17_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
+      it.print(247, 29, id(inter_17_bold), label_color, TextAlign::TOP_LEFT, "IAQ");
+      it.print(244, 51, id(space_mono_52_bold), has_iaq ? iaq_status_color : muted_text, TextAlign::TOP_LEFT, iaq_value_text);
+      it.print(247, 133, id(inter_17_bold), primary_text, TextAlign::TOP_LEFT, iaq_status_label);
 
       // VOC
       if (voc_whole_layout) {
@@ -447,7 +469,7 @@ touchscreen:
       mirror_x: true
       mirror_y: true
     on_touch:
-      - script.execute: boost_display_backlight
+      - script.execute: schedule_display_backlight_boost
       - lambda: |-
           static uint32_t last_touch_started_ms = 0;
           static bool last_touch_was_in_orbit = false;
@@ -486,6 +508,9 @@ touchscreen:
 
           last_touch_started_ms = now_ms;
           last_touch_was_in_orbit = is_in_orbit;
+    on_release:
+      then:
+        - script.stop: schedule_display_backlight_boost
 
 switch:
   - platform: gpio
