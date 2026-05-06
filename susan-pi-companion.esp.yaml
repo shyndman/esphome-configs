@@ -1,0 +1,268 @@
+substitutions:
+  friendly_name: Susan Pi Companion
+  name: susan-pi-companion
+  ha_display_line_1_entity: input_text.susan_pi_companion_display_line_1
+  ha_display_line_2_entity: input_text.susan_pi_companion_display_line_2
+
+esphome:
+  name: $name
+  friendly_name: $friendly_name
+  platformio_options:
+    build_flags: -DBOARD_HAS_PSRAM
+    board_build.f_flash: 80000000L
+    board_build.flash_mode: dio
+    build_unflags: -Werror=all
+    upload_speed: 921600
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+
+wifi:
+  ssid: !secret susan_ssid
+  password: !secret susan_password
+  fast_connect: true
+  power_save_mode: none
+  output_power: 8.5db
+  enable_btm: true
+  enable_rrm: true
+
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+safe_mode:
+
+logger:
+  level: DEBUG
+
+debug:
+  update_interval: 5min
+
+api:
+  reboot_timeout: 0s
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+
+time:
+  - platform: sntp
+    id: esptime
+    timezone: America/Toronto
+
+button:
+  - platform: restart
+    name: Restart
+    id: restart_button
+  - platform: safe_mode
+    name: Restart (Safe Mode)
+
+binary_sensor:
+  - platform: status
+    id: node_status
+
+external_components:
+  - source: github://shyndman/personal-esphome-components/
+    components: [bme68x_bsec2]
+
+i2c:
+  - id: bus
+    sda:
+      number: 8
+    scl: 9
+    scan: true
+    sda_pullup_enabled: true
+    scl_pullup_enabled: true
+    frequency: 100kHz
+
+bme68x_bsec2_i2c:
+  id: bme688_module
+  i2c_id: bus
+  address: 0x77
+  model: BME688
+  operating_age: 28d
+  sample_rate: LP
+  supply_voltage: 3.3V
+  temperature_offset: 4
+  state_save_interval: 6h
+  compensation:
+    temperature_source: sht21_temperature
+    humidity_source: sht21_humidity
+
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+    id: display_line_1_font
+    size: 18
+  - file:
+      type: gfonts
+      family: Roboto
+    id: display_line_2_font
+    size: 11
+
+display:
+  - platform: ssd1306_i2c
+    id: main_display
+    model: "SSD1306 128x32"
+    i2c_id: bus
+    address: 0x3C
+    offset_y: 10
+    invert: true
+    update_interval: 1s
+    lambda: |-
+      const bool has_line_1 = id(ha_display_line_1).has_state() && !id(ha_display_line_1).state.empty() &&
+                              id(ha_display_line_1).state != "unknown" && id(ha_display_line_1).state != "unavailable";
+      const bool has_line_2 = id(ha_display_line_2).has_state() && !id(ha_display_line_2).state.empty() &&
+                              id(ha_display_line_2).state != "unknown" && id(ha_display_line_2).state != "unavailable";
+      const bool has_device_ip = id(device_ip).has_state() && !id(device_ip).state.empty() &&
+                                 id(device_ip).state != "unknown" && id(device_ip).state != "unavailable";
+
+      std::string line1 = "Waiting for HA";
+      if (has_line_1) {
+        line1 = id(ha_display_line_1).state;
+      }
+
+      std::string line2 = "IP pending";
+      if (has_line_2) {
+        line2 = id(ha_display_line_2).state;
+      } else if (has_device_ip) {
+        line2 = id(device_ip).state;
+      }
+
+      it.printf(0, 0, id(display_line_1_font), "%s", line1.c_str());
+      it.printf(0, 22, id(display_line_2_font), "%s", line2.c_str());
+
+sensor:
+  - platform: debug
+    loop_time:
+      name: Loop Time
+  - platform: uptime
+    type: timestamp
+    name: Uptime Sensor
+  - platform: wifi_signal
+    name: Wifi RSSI
+    id: wifi_rssi
+    update_interval: 120s
+  - platform: internal_temperature
+    id: esp_internal_temp
+    name: Internal Temperature
+    update_interval: 150s
+  - platform: sps30
+    i2c_id: bus
+    address: 0x69
+    update_interval: 60s
+    pm_1_0:
+      name: "SPS30 PM <1µm"
+    pm_2_5:
+      name: "SPS30 PM <2.5µm"
+    pm_4_0:
+      name: "SPS30 PM <4µm"
+    pm_10_0:
+      name: "SPS30 PM <10µm"
+    pmc_0_5:
+      name: "SPS30 Number <0.5µm"
+    pmc_1_0:
+      name: "SPS30 Number <1µm"
+    pmc_2_5:
+      name: "SPS30 Number <2.5µm"
+    pmc_4_0:
+      name: "SPS30 Number <4µm"
+    pmc_10_0:
+      name: "SPS30 Number <10µm"
+    pm_size:
+      name: "SPS30 Typical Particle Size"
+  - platform: htu21d
+    i2c_id: bus
+    model: SHT21
+    update_interval: 60s
+    temperature:
+      name: "SHT21 Temperature"
+      id: sht21_temperature
+    humidity:
+      name: "SHT21 Humidity"
+      id: sht21_humidity
+  - platform: bme68x_bsec2
+    bme68x_bsec2_id: bme688_module
+    temperature:
+      name: "BME688 Temperature"
+    pressure:
+      name: "BME688 Pressure"
+    humidity:
+      name: "BME688 Humidity"
+    gas_resistance:
+      name: "BME688 Gas Resistance"
+    iaq:
+      name: "BME688 IAQ"
+      id: susan_pi_companion_iaq
+    iaq_static:
+      name: "BME688 IAQ Static"
+    iaq_accuracy:
+      name: "BME688 IAQ Accuracy"
+    co2_equivalent:
+      name: "BME688 CO2e"
+    breath_voc_equivalent:
+      name: "BME688 Breath VOC"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: IP
+      id: device_ip
+    ssid:
+      name: SSID
+    bssid:
+      name: BSSID
+  - platform: debug
+    device:
+      name: Device Info
+    reset_reason:
+      name: Reset Reason
+  - platform: bme68x_bsec2
+    bme68x_bsec2_id: bme688_module
+    iaq_accuracy:
+      name: "BME688 IAQ Accuracy Status"
+  - platform: template
+    name: "IAQ Classification"
+    lambda: |-
+      if (!id(susan_pi_companion_iaq).has_state() || id(susan_pi_companion_iaq).state != id(susan_pi_companion_iaq).state) {
+        return {"Unavailable"};
+      }
+      const int iaq_value = static_cast<int>(id(susan_pi_companion_iaq).state);
+      if (iaq_value <= 50) {
+        return {"Excellent"};
+      } else if (iaq_value <= 100) {
+        return {"Good"};
+      } else if (iaq_value <= 150) {
+        return {"Lightly polluted"};
+      } else if (iaq_value <= 200) {
+        return {"Moderately polluted"};
+      } else if (iaq_value <= 250) {
+        return {"Heavily polluted"};
+      } else if (iaq_value <= 350) {
+        return {"Severely polluted"};
+      } else if (iaq_value <= 500) {
+        return {"Extremely polluted"};
+      } else {
+        return {"Error"};
+      }
+  - platform: homeassistant
+    id: ha_display_line_1
+    entity_id: ${ha_display_line_1_entity}
+    internal: true
+  - platform: homeassistant
+    id: ha_display_line_2
+    entity_id: ${ha_display_line_2_entity}
+    internal: true
+
+select:
+  - platform: logger
+    name: Log Level
