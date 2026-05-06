@@ -42,7 +42,7 @@ microphone:
 sensor:
   - platform: sound_level
     passive: true
-    measurement_duration: 1000ms
+    measurement_duration: 100ms
     microphone:
       microphone: inmp441_microphone
       channels: [0]
