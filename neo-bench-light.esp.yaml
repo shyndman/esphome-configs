@@ -85,8 +85,9 @@ light:
     warm_white: fixture_1_ww_output
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
-    default_transition_length: 0s
-    gamma_correct: 1.0
+    constant_brightness: true
+    default_transition_length: 650ms
+    gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: cwww
@@ -96,8 +97,9 @@ light:
     warm_white: fixture_2_ww_output
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
-    default_transition_length: 0s
-    gamma_correct: 1.0
+    constant_brightness: true
+    default_transition_length: 650ms
+    gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: cwww
@@ -107,8 +109,9 @@ light:
     warm_white: fixture_3_ww_output
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
-    default_transition_length: 0s
-    gamma_correct: 1.0
+    constant_brightness: true
+    default_transition_length: 650ms
+    gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: cwww
@@ -118,8 +121,9 @@ light:
     warm_white: fixture_4_ww_output
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
-    default_transition_length: 0s
-    gamma_correct: 1.0
+    constant_brightness: true
+    default_transition_length: 250ms
+    gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
 
   - platform: cwww
@@ -129,6 +133,7 @@ light:
     warm_white: fixture_5_ww_output
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
-    default_transition_length: 0s
-    gamma_correct: 1.0
+    constant_brightness: true
+    default_transition_length: 250ms
+    gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
