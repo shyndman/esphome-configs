@@ -1,0 +1,98 @@
+substitutions:
+  friendly_name: Bench Helper
+  name: bench_helper
+  wcs1800_adc_pin: GPIO4
+  wcs1800_zero_current_volts: "1.250"
+  wcs1800_adc_volts_per_amp: "0.030"
+
+packages:
+  esp32-base: !include packages/esp32-base.esp.yaml
+  esp32c3-supermini: !include packages/esp32c3-supermini.esp.yaml
+
+# Assumed WCS-1800 module wiring:
+# - Module VCC -> 5V
+# - Module GND -> ESP GND
+# - Module AO -> 220k -> GPIO4, with GPIO4 -> 220k -> GND
+# - Module DO/comparator output unused
+# These defaults assume the divider halves the module's ~2.5V zero-current output
+# to ~1.25V at the ADC pin, and halves a nominal 60 mV/A sensitivity to 30 mV/A.
+# Calibrate both substitutions on real hardware.
+
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - microphone.capture: inmp441_microphone
+
+switch:
+  - platform: gpio
+    id: inmp441_channel_select
+    internal: true
+    pin:
+      number: 21
+      mode:
+        output: true
+        pulldown: true
+    restore_mode: ALWAYS_OFF
+
+i2s_audio:
+  - id: inmp441_i2s
+    i2s_lrclk_pin: 20
+    i2s_bclk_pin: 10
+
+microphone:
+  - platform: i2s_audio
+    id: inmp441_microphone
+    i2s_audio_id: inmp441_i2s
+    adc_type: external
+    i2s_din_pin: 9
+    pdm: false
+    channel: left
+    sample_rate: 16000
+    bits_per_sample: 16bit
+
+sensor:
+  - platform: sound_level
+    passive: true
+    measurement_duration: 100ms
+    microphone:
+      microphone: inmp441_microphone
+      channels: [0]
+    rms:
+      id: inmp441_rms
+      name: "Mic RMS"
+    peak:
+      id: inmp441_peak
+      name: "Mic Peak"
+
+  - platform: adc
+    id: soldron_iron_current_signal
+    name: "Soldron Iron Current Signal"
+    entity_category: diagnostic
+    pin:
+      number: ${wcs1800_adc_pin}
+    attenuation: 12db
+    update_interval: 1s
+
+  - platform: template
+    id: soldron_iron_current
+    name: "Soldron Iron Current"
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: A
+    update_interval: 1s
+    accuracy_decimals: 3
+    lambda: |-
+      if (!id(soldron_iron_current_signal).has_state()) {
+        return NAN;
+      }
+
+      const float current =
+          (id(soldron_iron_current_signal).state - ${wcs1800_zero_current_volts}) /
+          ${wcs1800_adc_volts_per_amp};
+
+      if (fabsf(current) < 0.01f) {
+        return 0.0f;
+      }
+
+      return current;
