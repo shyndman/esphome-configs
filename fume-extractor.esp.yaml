@@ -1,9 +1,9 @@
 substitutions:
   friendly_name: Fume Extractor
   name: fume_extractor
-  sun_orbit_center_x: "108"
+  sun_orbit_center_x: "103"
   sun_orbit_center_y: "89"
-  sun_orbit_radius: "89"
+  sun_orbit_radius: "83"
   display_backlight_idle_brightness: "25%"
   display_backlight_active_brightness: "100%"
   display_backlight_transition: 300ms
@@ -157,16 +157,16 @@ font:
       type: gfonts
       family: Space Mono
       weight: 700
-    id: space_mono_59_bold
-    size: 59
+    id: space_mono_65_bold
+    size: 65
     glyphs: "0123456789-"
     bpp: 8
   - file:
       type: gfonts
       family: Space Grotesk
       weight: 400
-    id: space_grotesk_53_regular
-    size: 53
+    id: space_grotesk_59_regular
+    size: 59
     glyphs: ":"
     bpp: 8
   - file:
@@ -255,10 +255,12 @@ display:
         it.filled_circle(sun_x, sun_y, 5, sun_color);
       }
 
-      constexpr int kClockDigitWidth = 34;
-      constexpr int kClockColonWidth = 10;
+      constexpr int kClockDigitWidth = 37;
+      constexpr int kClockColonWidth = 12;
       constexpr int kClockDigitGap = 6;
       constexpr int kClockColonGap = 5;
+      constexpr int kClockDigitY = 39;
+      constexpr int kClockColonY = 50;
       constexpr int kClockWidth =
         kClockDigitWidth * 4 + kClockColonWidth + kClockDigitGap * 2 + kClockColonGap * 2;
       constexpr int kClockLeft = ${sun_orbit_center_x} - (kClockWidth / 2);
@@ -273,9 +275,9 @@ display:
       for (size_t i = 0; i < 5; i++) {
         clock_char[0] = clock_text[i];
         if (clock_char[0] == ':') {
-          it.print(time_xs[i], 50+6, id(space_grotesk_53_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], kClockColonY, id(space_grotesk_59_regular), accent_text, TextAlign::TOP_LEFT, clock_char);
         } else {
-          it.print(time_xs[i], 39+6, id(space_mono_59_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
+          it.print(time_xs[i], kClockDigitY, id(space_mono_65_bold), primary_text, TextAlign::TOP_LEFT, clock_char);
         }
       }
 
