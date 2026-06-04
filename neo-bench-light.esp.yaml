@@ -22,6 +22,11 @@ substitutions:
 
 packages:
   esp32-base: !include packages/esp32-base.esp.yaml
+  # Five PWM fixtures share one template; each maps a pair of MOSFET gate GPIOs.
+  fixture_1: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 1, ww_pin: 23, cw_pin: 22 } }
+  fixture_2: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 2, ww_pin: 21, cw_pin: 19 } }
+  fixture_3: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 3, ww_pin: 5, cw_pin: 17 } }
+  fixture_4: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 4, ww_pin: 2, cw_pin: 15 } }
 
 esp32:
   board: esp32dev
@@ -35,105 +40,3 @@ preferences:
 logger:
   level: DEBUG
 
-output:
-  - platform: ledc
-    id: fixture_1_cw_output
-    pin: GPIO16
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_1_ww_output
-    pin: GPIO17
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_2_cw_output
-    pin: GPIO18
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_2_ww_output
-    pin: GPIO19
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_3_cw_output
-    pin: GPIO21
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_3_ww_output
-    pin: GPIO22
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_4_cw_output
-    pin: GPIO23
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_4_ww_output
-    pin: GPIO25
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_5_cw_output
-    pin: GPIO26
-    frequency: 1000Hz
-  - platform: ledc
-    id: fixture_5_ww_output
-    pin: GPIO27
-    frequency: 1000Hz
-
-light:
-  - platform: cwww
-    id: bench_light_1
-    name: Bench Light 1
-    cold_white: fixture_1_cw_output
-    warm_white: fixture_1_ww_output
-    cold_white_color_temperature: 6500 K
-    warm_white_color_temperature: 2700 K
-    constant_brightness: true
-    default_transition_length: 650ms
-    gamma_correct: 2.2
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: cwww
-    id: bench_light_2
-    name: Bench Light 2
-    cold_white: fixture_2_cw_output
-    warm_white: fixture_2_ww_output
-    cold_white_color_temperature: 6500 K
-    warm_white_color_temperature: 2700 K
-    constant_brightness: true
-    default_transition_length: 650ms
-    gamma_correct: 2.2
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: cwww
-    id: bench_light_3
-    name: Bench Light 3
-    cold_white: fixture_3_cw_output
-    warm_white: fixture_3_ww_output
-    cold_white_color_temperature: 6500 K
-    warm_white_color_temperature: 2700 K
-    constant_brightness: true
-    default_transition_length: 650ms
-    gamma_correct: 2.2
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: cwww
-    id: bench_light_4
-    name: Bench Light 4
-    cold_white: fixture_4_cw_output
-    warm_white: fixture_4_ww_output
-    cold_white_color_temperature: 6500 K
-    warm_white_color_temperature: 2700 K
-    constant_brightness: true
-    default_transition_length: 250ms
-    gamma_correct: 2.2
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: cwww
-    id: bench_light_5
-    name: Bench Light 5
-    cold_white: fixture_5_cw_output
-    warm_white: fixture_5_ww_output
-    cold_white_color_temperature: 6500 K
-    warm_white_color_temperature: 2700 K
-    constant_brightness: true
-    default_transition_length: 250ms
-    gamma_correct: 2.2
-    restore_mode: RESTORE_DEFAULT_OFF

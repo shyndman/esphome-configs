@@ -1,0 +1,50 @@
+# Neo Bench Light fixture template.
+#
+# One CW/WW fixture = two LEDC channels + one cwww light.
+# Included once per fixture from neo-bench-light.esp.yaml via packages,
+# parameterized with:
+#   n       - fixture index (1-based)
+#   ww_pin  - warm-white MOSFET gate GPIO
+#   cw_pin  - cold-white MOSFET gate GPIO
+
+output:
+  - platform: ledc
+    id: fixture_${n}_ww_output
+    pin: ${ww_pin}
+    frequency: 1000Hz
+  - platform: ledc
+    id: fixture_${n}_cw_output
+    pin: ${cw_pin}
+    frequency: 1000Hz
+
+light:
+  - platform: cwww
+    id: bench_light_${n}
+    name: Bench Light ${n}
+    cold_white: fixture_${n}_cw_output
+    warm_white: fixture_${n}_ww_output
+    cold_white_color_temperature: 6500 K
+    warm_white_color_temperature: 2700 K
+    constant_brightness: false
+    default_transition_length: 650ms
+    gamma_correct: 2.2
+    restore_mode: RESTORE_DEFAULT_OFF
+    effects:
+      - flicker:
+      - pulse:
+      - pulse:
+          name: "Fast Pulse"
+          transition_length: 0.5s
+          update_interval: 0.5s
+          min_brightness: 0%
+          max_brightness: 100%
+      - pulse:
+          name: "Slow Pulse"
+          transition_length: 500ms
+          update_interval: 2s
+      - pulse:
+          name: "Asymmetrical Pulse"
+          transition_length:
+            on_length: 1s
+            off_length: 500ms
+          update_interval: 1.5s
