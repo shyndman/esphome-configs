@@ -38,3 +38,7 @@ esp32:
   framework:
     type: esp-idf
 
+web_server:
+  port: 80
+  local: true
+  ota: false
