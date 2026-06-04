@@ -38,9 +38,3 @@ esp32:
   framework:
     type: esp-idf
 
-preferences:
-  flash_write_interval: 30s
-
-logger:
-  level: DEBUG
-
