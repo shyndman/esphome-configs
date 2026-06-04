@@ -28,6 +28,10 @@ packages:
   fixture_3: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 3, ww_pin: 5, cw_pin: 17 } }
   fixture_4: !include { file: packages/neo-fixture.esp.yaml, vars: { n: 4, ww_pin: 2, cw_pin: 15 } }
 
+wifi:
+  ap:
+    ssid: "${friendly_name} Fallback"
+
 esp32:
   board: esp32dev
   cpu_frequency: 240MHz
