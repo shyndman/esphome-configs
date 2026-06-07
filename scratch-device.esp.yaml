@@ -6,49 +6,18 @@ packages:
   esp32-base: !include packages/esp32-base.esp.yaml
   esp32c3-supermini: !include packages/esp32c3-supermini.esp.yaml
 
-esphome:
-  on_boot:
-    priority: -100
-    then:
-      - microphone.capture: inmp441_microphone
-
-switch:
-  - platform: gpio
-    id: inmp441_channel_select
-    internal: true
-    pin:
-      number: 21
-      mode:
-        output: true
-        pulldown: true
-    restore_mode: ALWAYS_OFF
-
-i2s_audio:
-  - id: inmp441_i2s
-    i2s_lrclk_pin: 20
-    i2s_bclk_pin: 10
-
-microphone:
-  - platform: i2s_audio
-    id: inmp441_microphone
-    i2s_audio_id: inmp441_i2s
-    adc_type: external
-    i2s_din_pin: 9
-    pdm: false
-    channel: left
-    sample_rate: 16000
-    bits_per_sample: 16bit
+logger:
+  level: debug
 
 sensor:
-  - platform: sound_level
-    passive: true
-    measurement_duration: 100ms
-    microphone:
-      microphone: inmp441_microphone
-      channels: [0]
-    rms:
-      id: inmp441_rms
-      name: "Mic RMS"
-    peak:
-      id: inmp441_peak
-      name: "Mic Peak"
+  - platform: adc
+    id: usb_voltage
+    name: "A2 Voltage"
+    pin: 4
+    attenuation: auto
+    update_interval: 1s
+
+binary_sensor:
+  - platform: gpio
+    id: is_usb_active
+    pin: 3
