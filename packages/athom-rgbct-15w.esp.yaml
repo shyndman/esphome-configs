@@ -8,32 +8,32 @@ preferences:
 output:
   - platform: esp8266_pwm
     id: red_output
-    pin: GPIO4
+    pin: 4
     min_power: 0.000499
     max_power: 1
     zero_means_zero: true
   - platform: esp8266_pwm
     id: green_output
-    pin: GPIO12
+    pin: 12
     min_power: 0.000499
     max_power: 1
     zero_means_zero: true
   - platform: esp8266_pwm
     id: blue_output
-    pin: GPIO14
+    pin: 14
     min_power: 0.000499
     max_power: 1
     zero_means_zero: true
   - platform: esp8266_pwm
     id: white_output
-    pin: GPIO5
+    pin: 5
     min_power: 0.01
     max_power: 0.9
     zero_means_zero: true
   - platform: esp8266_pwm
     id: ct_output
     inverted: true
-    pin: GPIO13
+    pin: 13
     min_power: 0.01
     max_power: 0.9
     zero_means_zero: true
@@ -56,3 +56,72 @@ light:
         file: light-effects/index-rgb.esp.yaml
         vars:
           light_id: bulb
+    on_state:
+      # Mirror the levels the light writes to each pin into the sliders.
+      # current_values_as_rgbct() produces the same 0-1 values the rgbct
+      # output passes to set_level(), so the numbers stay in sync.
+      - lambda: |-
+          float red, green, blue, ct, white;
+          id(bulb).current_values_as_rgbct(&red, &green, &blue, &ct, &white);
+          id(red_number).publish_state(red);
+          id(green_number).publish_state(green);
+          id(blue_number).publish_state(blue);
+          id(white_number).publish_state(white);
+          id(ct_number).publish_state(ct);
+
+number:
+  - platform: template
+    name: "Red Level"
+    id: red_number
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    optimistic: true
+    set_action:
+      - output.set_level:
+          id: red_output
+          level: !lambda return x;
+  - platform: template
+    name: "Green Level"
+    id: green_number
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    optimistic: true
+    set_action:
+      - output.set_level:
+          id: green_output
+          level: !lambda return x;
+  - platform: template
+    name: "Blue Level"
+    id: blue_number
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    optimistic: true
+    set_action:
+      - output.set_level:
+          id: blue_output
+          level: !lambda return x;
+  - platform: template
+    name: "White Level"
+    id: white_number
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    optimistic: true
+    set_action:
+      - output.set_level:
+          id: white_output
+          level: !lambda return x;
+  - platform: template
+    name: "CT Level"
+    id: ct_number
+    min_value: 0
+    max_value: 1
+    step: 0.01
+    optimistic: true
+    set_action:
+      - output.set_level:
+          id: ct_output
+          level: !lambda return x;
