@@ -1,0 +1,32 @@
+# RGB light effect set: rainbow plus the shared brightness effects.
+# Rainbow uses set_rgb, so only include this from an rgb-capable light.
+# Include with a light_id var, e.g.
+#   effects:
+#     !include
+#       file: light-effects/index-rgb.esp.yaml
+#       vars:
+#         light_id: bulb
+- !include
+    file: rainbow.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: flicker.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: fast-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: slow-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: asymmetrical-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"

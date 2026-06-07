@@ -26,25 +26,11 @@ light:
     cold_white_color_temperature: 6500 K
     warm_white_color_temperature: 2700 K
     constant_brightness: false
-    default_transition_length: 650ms
+    default_transition_length: 900ms
     gamma_correct: 2.2
     restore_mode: RESTORE_DEFAULT_OFF
     effects:
-      - flicker:
-      - pulse:
-      - pulse:
-          name: "Fast Pulse"
-          transition_length: 0.5s
-          update_interval: 0.5s
-          min_brightness: 0%
-          max_brightness: 100%
-      - pulse:
-          name: "Slow Pulse"
-          transition_length: 500ms
-          update_interval: 2s
-      - pulse:
-          name: "Asymmetrical Pulse"
-          transition_length:
-            on_length: 1s
-            off_length: 500ms
-          update_interval: 1.5s
+      !include
+        file: light-effects/index.esp.yaml
+        vars:
+          light_id: bench_light_${n}

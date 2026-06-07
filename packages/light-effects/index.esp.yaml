@@ -1,0 +1,27 @@
+# Shared brightness-only effects, safe on any light (cwww or rgb).
+# Each entry references id(${light_id}); include this with a light_id var, e.g.
+#   effects:
+#     !include
+#       file: light-effects/index.esp.yaml
+#       vars:
+#         light_id: bench_light_${n}
+- !include
+    file: flicker.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: fast-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: slow-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"
+- !include
+    file: asymmetrical-pulse.esp.yaml
+    vars:
+      light_id: "${light_id}"

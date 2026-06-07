@@ -52,4 +52,7 @@ light:
     warm_white_color_temperature: 500 mireds
     color_interlock: true
     effects:
-      !include light-effects/rainbow.esp.yaml
+      !include
+        file: light-effects/index-rgb.esp.yaml
+        vars:
+          light_id: bulb

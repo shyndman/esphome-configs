@@ -1,0 +1,22 @@
+lambda:
+  name: "Asymmetrical Pulse"
+  update_interval: 100ms
+  lambda: |-
+    static bool high = false;
+    constexpr uint32_t cycle_ms = 3000;
+    constexpr uint32_t high_half_ms = 1500;
+    constexpr uint32_t on_transition_length_ms = 1000;
+    constexpr uint32_t off_transition_length_ms = 500;
+
+    const bool target_high = (millis() % cycle_ms) < high_half_ms;
+    if (!initial_run && target_high == high) {
+      return;
+    }
+    high = target_high;
+
+    auto call = id(${light_id}).turn_on();
+    call.set_brightness(high ? 1.0f : 0.0f);
+    call.set_transition_length(high ? on_transition_length_ms : off_transition_length_ms);
+    call.set_publish(false);
+    call.set_save(false);
+    call.perform();
