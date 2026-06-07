@@ -1,0 +1,7 @@
+substitutions:
+  friendly_name: 'Back Stairs Light'
+  name: 'back_stairs_light'
+
+packages:
+  device-base: !include packages/device-base.esp.yaml
+  athom-rgbct-15w: !include packages/athom-rgbct-15w.esp.yaml
