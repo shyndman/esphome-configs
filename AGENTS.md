@@ -26,7 +26,7 @@ This repository is an ESPHome configuration monorepo for Home Assistant-connecte
 - `docs/` — design notes and hardware references
 
 ## Development Commands
-- After making any change, always run `esphome config <device>.esp.yaml` and `esphome compile <device>.esp.yaml` locally to ensure the configuration still validates and compiles before moving on.
+- Do **not** run `esphome config <device>.esp.yaml`, `esphome compile <device>.esp.yaml`, or any other build/validation command unless explicitly asked to do so.
 - Validate config: `esphome config <device>.esp.yaml`
 - Compile firmware: `esphome compile <device>.esp.yaml`
 - Flash over USB: `esphome upload --device /dev/ttyUSB0 <device>.esp.yaml`
@@ -73,9 +73,9 @@ Useful helpers:
 
 ## Testing & QA
 - No formal unit-test framework or CI pipeline is defined in-repo.
-- QA is command-driven and hardware-observed:
-  1. `esphome config <device>.esp.yaml` for every change.
-  2. `esphome compile <device>.esp.yaml` when touching shared packages/platform settings.
-  3. `esphome logs <device>.esp.yaml` to verify boot/runtime behavior after deploy.
+- QA is command-driven and hardware-observed, but agents must not run validation or build commands unless explicitly requested:
+  1. `esphome config <device>.esp.yaml` validates configuration.
+  2. `esphome compile <device>.esp.yaml` compiles firmware.
+  3. `esphome logs <device>.esp.yaml` verifies boot/runtime behavior after deploy.
 - Use `scratch/` or `scratch-device.esp.yaml` for high-risk iteration before touching production device configs.
 - For UI/sensor changes, capture short runtime logs (and screenshots when visual behavior changes) as evidence.
